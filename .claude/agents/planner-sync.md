@@ -54,16 +54,16 @@ ToolSearch basarisizsa CLI fallback'e gec.
 
 ## Planner Bilgileri
 
-- **Plan ID**: `{PLAN_ID}`
+- **M365 Group**: `ZRPD_EDEV` (`c60d937c-65cc-4461-a841-0aaf9b4ac6e7`)
+- **Plan ID**: `QIMFwuYPE06l4x5xVs0R-5gAHU2N`
 - **Bucket ID'leri**:
-  - Backlog: `{BUCKET_ID}`
-  - Design: `{BUCKET_ID}`
-  - In Progress: `{BUCKET_ID}`
-  - Review: `{BUCKET_ID}`
-  - Done: `{BUCKET_ID}`
+  - Backlog: `Fk-3cgG_MUCPwOzy-5E4a5gADSkq`
+  - Design: `1SjQKlxmXkWU-Gq54tSoHJgACi4K`
+  - In Progress: `e3Bd9WfuS0KWGcI32hWKdZgADzBj`
+  - Review: `FqZiSRyY806xAWHrXCZUkZgAJwg9`
+  - Done: `wcBIYGvn80mWfxr_IAC3EZgAE7sI`
 
-> Yeni proje baslatirken Plan ID ve Bucket ID'leri doldurun.
-> `$PYTHON $HELPER buckets $PLAN_ID` ile mevcut bucket'lari gorebilirsiniz.
+> `$PYTHON $HELPER buckets QIMFwuYPE06l4x5xVs0R-5gAHU2N` ile bucket'lari gorebilirsiniz.
 
 ## Bucket - Faz Eslestirmesi
 

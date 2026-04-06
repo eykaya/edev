@@ -24,10 +24,26 @@
       "mcp__sap-adt__abap_set_source",
       "mcp__sap-adt__abap_syntax_check",
       "mcp__sap-adt__abap_get_source",
-      "mcp__sap-adt__abap_run"
+      "mcp__sap-adt__abap_run",
+      "Bash(npm search:*)",
+      "Bash(gh search:*)",
+      "Bash(gh repo:*)",
+      "Bash(gh api:*)",
+      "mcp__planner__*",
+      "Bash(/Users/emreyalcinkaya/.rapidhcm/planner-venv/bin/python3 /Users/emreyalcinkaya/Projects/EDEV/abap-template/tools/planner_helper.py *)",
+      "Bash(/Users/emreyalcinkaya/.rapidhcm/planner-venv/bin/python3 -c \"import msal; import mcp; print\\('OK'\\)\")",
+      "Bash(/Users/emreyalcinkaya/.rapidhcm/planner-venv/bin/python3 -c ':*)",
+      "Bash(/Users/emreyalcinkaya/.rapidhcm/planner-venv/bin/python3)"
     ]
   },
   "mcpServers": {
+    "planner": {
+      "command": "/Users/emreyalcinkaya/.rapidhcm/planner-venv/bin/python3",
+      "args": [
+        "/Users/emreyalcinkaya/Projects/EDEV/abap-template/tools/planner_mcp.py"
+      ],
+      "env": {}
+    },
     "sap-fiori-tools": {
       "command": "npx",
       "args": [

@@ -10,12 +10,26 @@ Microsoft Planner ile proje yonetimi entegrasyonu. Her gelistirme bir Planner ka
 
 | Alan | Deger |
 |---|---|
-| Plan ID | `{PLAN_ID}` |
-| Backlog Bucket | `{BUCKET_ID}` |
-| Design Bucket | `{BUCKET_ID}` |
-| In Progress Bucket | `{BUCKET_ID}` |
-| Review Bucket | `{BUCKET_ID}` |
-| Done Bucket | `{BUCKET_ID}` |
+| M365 Group | `ZRPD_EDEV` |
+| Group ID | `c60d937c-65cc-4461-a841-0aaf9b4ac6e7` |
+| Plan ID | `QIMFwuYPE06l4x5xVs0R-5gAHU2N` |
+| Backlog Bucket | `Fk-3cgG_MUCPwOzy-5E4a5gADSkq` |
+| Design Bucket | `1SjQKlxmXkWU-Gq54tSoHJgACi4K` |
+| In Progress Bucket | `e3Bd9WfuS0KWGcI32hWKdZgADzBj` |
+| Review Bucket | `FqZiSRyY806xAWHrXCZUkZgAJwg9` |
+| Done Bucket | `wcBIYGvn80mWfxr_IAC3EZgAE7sI` |
+
+### Kart ID'leri
+
+| Kart | Task ID |
+|---|---|
+| FAZ 1 — DDIC Temeli | `SKxAQXWJHUKOe5OOx1sIbJgAHxRo` |
+| FAZ 2 — Core Katman | `1404Kmkyvke65r3IwOhJR5gAOWOK` |
+| FAZ 3 — Data Access | `zUB_WDczMEWIRJENGSElOpgAJfBM` |
+| FAZ 5 — Base Class + Ikametgah Parser | `d10j0LSMF0SS5BgGMvdHH5gAEw5v` |
+| FAZ 4 — Upload, Download, List, Validate | `hXnXJBhp1EyZ3ZxS9zwS0ZgAB7ju` |
+| FAZ 6 — e-Devlet + API | `dcf9lQLMpUKRyMEqRZB1BJgAEF2d` |
+| FAZ 7 — UI (Rapor + Transaction) | `N8E7cEZCuUSX0-L9kMZ1rpgAN_5u` |
 
 > Yeni proje baslatirken: `$PYTHON $HELPER buckets $PLAN_ID` ile bucket ID'leri alin.
 
@@ -72,10 +86,10 @@ Planner MCP server ve CLI tool paylasimli kullanilir:
 
 | Bilesen | Konum |
 |---|---|
-| MCP Server | `{PLANNER_MCP_SCRIPT_PATH}` |
-| CLI Helper | `{PLANNER_HELPER_SCRIPT_PATH}` |
-| Python venv | `{PLANNER_PYTHON_PATH}` |
-| Token cache | `{PLANNER_TOKEN_CACHE_PATH}` |
+| MCP Server | `tools/planner_mcp.py` |
+| CLI Helper | `tools/planner_helper.py` |
+| Python venv | `~/.rapidhcm/planner-venv/` |
+| Token cache | `~/.rapidhcm/planner_token_cache.json` |
 
 ## Kullanim
 
