@@ -1,0 +1,16 @@
+{
+  "name": "abap-project-template",
+  "version": "1.0.0",
+  "description": "Generic ABAP Development Environment — abaplint tooling",
+  "private": true,
+  "scripts": {
+    "lint": "./node_modules/.bin/abaplint src/",
+    "lint:fix": "./node_modules/.bin/abaplint src/ --fix"
+  },
+  "devDependencies": {
+    "@abaplint/cli": "^2.118.8"
+  },
+  "keywords": ["sap", "abap", "abapgit", "clean-abap"],
+  "author": "Emre Yalcinkaya",
+  "license": "UNLICENSED"
+}

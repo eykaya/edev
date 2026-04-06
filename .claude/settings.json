@@ -1,0 +1,59 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(code --install-extension larshp.vscode-abaplint)",
+      "Bash(code --install-extension larshp.vscode-abap)",
+      "Bash(code --install-extension larshp.vscode-abap-file-formats)",
+      "Bash(code --install-extension sapse.vscode-cds)",
+      "Bash(code --install-extension sapse.sap-ux-fiori-tools-extension-pack)",
+      "Bash(npm run lint*)",
+      "Bash(npm install*)",
+      "Bash(npx @abaplint/cli*)",
+      "Bash(git commit -m ':*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(npm view:*)",
+      "Bash(timeout 10 node -e ':*)",
+      "Bash(node -e ':*)",
+      "Bash(kill %1)",
+      "Bash(wait)",
+      "Bash(python3 -c ':*)",
+      "mcp__sap-adt__healthcheck",
+      "mcp__sap-adt__abap_create",
+      "mcp__sap-adt__abap_unlock",
+      "mcp__sap-adt__abap_set_source",
+      "mcp__sap-adt__abap_syntax_check",
+      "mcp__sap-adt__abap_get_source",
+      "mcp__sap-adt__abap_run"
+    ]
+  },
+  "mcpServers": {
+    "sap-fiori-tools": {
+      "command": "npx",
+      "args": [
+        "@sap-ux/fiori-mcp-server",
+        "--stdio"
+      ]
+    },
+    "sap-ui5": {
+      "command": "npx",
+      "args": [
+        "@ui5/mcp-server",
+        "--stdio"
+      ]
+    },
+    "sap-adt": {
+      "command": "node",
+      "args": [
+        "tools/dassian-adt/dist/index.js"
+      ],
+      "env": {
+        "SAP_URL": "{SAP_URL}",
+        "SAP_CLIENT": "{SAP_CLIENT}",
+        "SAP_USER": "{SAP_USER}",
+        "SAP_PASSWORD": "{SAP_PASSWORD}",
+        "SAP_LANGUAGE": "{SAP_LANGUAGE}"
+      }
+    }
+  }
+}

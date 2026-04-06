@@ -1,0 +1,15 @@
+node_modules/
+package-lock.json
+.DS_Store
+.metadata/
+Thumbs.db
+.vscode/settings.json
+.idea/
+.env
+.env.local
+.mcp.json
+*.pem
+saptemp/
+*.sapcar
+dist/
+build/

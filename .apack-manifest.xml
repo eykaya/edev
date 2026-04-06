@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
+ <asx:values>
+  <DATA>
+   <GROUP_ID>{github_org}</GROUP_ID>
+   <ARTIFACT_ID>{prefix}</ARTIFACT_ID>
+   <VERSION>0.1.0</VERSION>
+   <REPOSITORY_TYPE>github</REPOSITORY_TYPE>
+   <GIT_URL>{repository_url}</GIT_URL>
+   <DEPENDENCIES/>
+  </DATA>
+ </asx:values>
+</asx:abap>
