@@ -59,6 +59,29 @@ Method-level cerrahi ve batch deploy:
                               [QAS] -> [PRD]
 ```
 
+### ECC 6.0 Aktivasyon Workaround (KRITIK!)
+
+`abap_activate` MCP tool'u ECC 6.0'da sessizce basarisiz oluyor (transport audit popup headless ortamda cevaplanamaz).
+
+**Calisan yontem:** `raw_http` ile `preauditRequested=false`:
+
+```
+POST /sap/bc/adt/activation?method=activate&preauditRequested=false
+Content-Type: application/xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+<adtcore:objectReferences xmlns:adtcore="http://www.sap.com/adt/core">
+  <adtcore:objectReference adtcore:uri="/sap/bc/adt/oo/classes/zcl_xxx" adtcore:name="ZCL_XXX"/>
+</adtcore:objectReferences>
+```
+
+**URI path'ler:**
+- Class: `/sap/bc/adt/oo/classes/{name}`
+- Interface: `/sap/bc/adt/oo/interfaces/{name}`
+- Program: `/sap/bc/adt/programs/programs/{name}`
+
+**Not:** abapGit ile gelen class'larda implementation bos gelebilir. Bu durumda `abap_set_source` ile source yazilip Eclipse'den Ctrl+F3 ile aktive edilmeli.
+
 ## Microsoft Planner MCP
 
 Proje yonetimi icin Microsoft Planner entegrasyonu. Detaylar: [`planner-entegrasyonu.md`](planner-entegrasyonu.md)

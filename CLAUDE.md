@@ -78,6 +78,23 @@ Tum gelistirmeler icin tek sablon: [`Åžablonlar/Gelistirme_Spesifikasyonu.md`](Å
 
 > Tum plugin katalogu (BTP, CAP, AI, Analytics dahil 32 plugin): [`docs/PLUGINS.md`](docs/PLUGINS.md)
 
+## OCR Entegrasyonu
+
+PDF text extraction icin Python OCR kullanilir (e-Devlet PDF'leri image-based).
+
+| Bilesen | Detay |
+|---|---|
+| Python | F:\usr\sap\Python38-32\python.exe (3.8.5) |
+| Tesseract | F:\usr\sap\Tesseract-OCR\tesseract.exe (5.4.0, 7z ile extract) |
+| OCR Script | F:\usr\sap\edev\ocr_extract.py |
+| SM69 Komutlari | Z_EDEV_PY (Python), Z_EDEV_OCR (OCR script) |
+| ABAP Class | ZCL_ZRPD_EDEV_OCR_PY (SXPG_COMMAND_EXECUTE ile cagri) |
+| Test Raporu | ZRPD_EDEV_R_TEST (SE38) |
+
+**Akis:** PDF xstring -> diske yaz -> Python OCR -> JSON dosya -> ABAP oku -> parse
+
+> **Onemli:** `SXPG_COMMAND_EXECUTE` parametreleri `TYPE string` degil `TYPE sxpgcostab-parameters` (CHAR 255) olmali. String tip `CX_SY_DYN_CALL_ILLEGAL_TYPE` verir.
+
 ## Referanslar
 
 - [SAP Clean ABAP](https://github.com/SAP/styleguides/blob/main/clean-abap/CleanABAP.md)

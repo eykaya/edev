@@ -9,7 +9,8 @@ endclass.
 class zcl_zrpd_edev_cus_rep implementation.
 
   method zif_zrpd_edev_cust_repo~get_doc_type.
-    data: ls_dtype type zrpd_edev_t_dtyp.
+    data: ls_dtype type zrpd_edev_t_dtyp,
+          lv_msg   type symsgv.
 
     select single * from zrpd_edev_t_dtyp
       into ls_dtype
@@ -18,9 +19,10 @@ class zcl_zrpd_edev_cus_rep implementation.
     if sy-subrc = 0.
       rs_dtype = ls_dtype.
     else.
+      lv_msg = iv_doc_type.
       raise exception type zcx_zrpd_edev_notfnd
         exporting
-          mv_msgv1 = iv_doc_type.
+          mv_msgv1 = lv_msg.
     endif.
   endmethod.
 

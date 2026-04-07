@@ -15,13 +15,16 @@ endclass.
 class zcl_zrpd_edev_doc_fac implementation.
 
   method create_parser.
+    data: lv_msg type symsgv.
+
     case iv_doc_type.
       when 'IKAMETGAH'.
         create object ro_parser type zcl_zrpd_edev_doc_ika.
       when others.
+        lv_msg = iv_doc_type.
         raise exception type zcx_zrpd_edev_valid
           exporting
-            mv_msgv1 = iv_doc_type.
+            mv_msgv1 = lv_msg.
     endcase.
   endmethod.
 

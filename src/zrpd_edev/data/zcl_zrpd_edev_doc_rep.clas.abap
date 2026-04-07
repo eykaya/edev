@@ -53,7 +53,7 @@ class zcl_zrpd_edev_doc_rep implementation.
         upload_date upload_time upload_user
         changed_date changed_time changed_user
       from zrpd_edev_t_doc
-      into ls_doc
+      into corresponding fields of ls_doc
       where doc_guid = iv_guid.
 
     if sy-subrc = 0.
@@ -74,7 +74,7 @@ class zcl_zrpd_edev_doc_rep implementation.
         upload_date upload_time upload_user
         changed_date changed_time changed_user
       from zrpd_edev_t_doc
-      into table lt_docs
+      into corresponding fields of table lt_docs
       where pernr = iv_pernr
       order by upload_date descending upload_time descending.
 

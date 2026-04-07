@@ -31,6 +31,24 @@
 |---|---|---|---|
 | 1.0 | 2026-04-06 | Emre Yalcinkaya | Ilk taslak — tum fazlar tamamlandi, onaylandi |
 
+### Tablo Isim Degisiklikleri (16-char DB limiti)
+
+SAP ECC transparent tablolari 16 karakter DB limiti nedeniyle asagidaki kisaltmalar yapilmistir:
+
+| Spec Adi (Orijinal) | SAP Adi (Gercek) | Aciklama |
+|---|---|---|
+| ZRPD_EDEV_T_DCTYP | ZRPD_EDEV_T_DTYP | Belge tipi tanimlari |
+| ZRPD_EDEV_T_DCFLD | ZRPD_EDEV_T_DFLD | Alan tanimlari |
+| ZRPD_EDEV_T_DCMAP | ZRPD_EDEV_T_DMAP | IT eslestirme |
+| ZRPD_EDEV_T_PARAM | ZRPD_EDEV_T_PARM | Sistem parametreleri |
+| ZRPD_EDEV_T_CNTRY | ZRPD_EDEV_T_CTRY | Ulke donusum |
+| ZRPD_EDEV_T_DCVAL | ZRPD_EDEV_T_DVAL | Alan degerleri |
+| ZRPD_EDEV_T_APILOG | ZRPD_EDEV_T_ALOG | API log |
+| ZRPD_EDEV_T_PROCLOG | ZRPD_EDEV_T_PLOG | Islem log |
+| ZRPD_EDEV_T_DOC | ZRPD_EDEV_T_DOC | Belgeler (degismedi) |
+
+> **Not:** Spec dokumani orijinal isimleri kullaniyor. SAP sistemindeki gercek isimler kisaltilmis halidir.
+
 ---
 
 ## FAZ 1: KAPSAM VE AMAC

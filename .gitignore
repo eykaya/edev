@@ -8,8 +8,11 @@ Thumbs.db
 .env
 .env.local
 .mcp.json
+.claude/settings.local.json
 *.pem
 saptemp/
+tools/dassian-adt/
 *.sapcar
 dist/
 build/
+tools/__pycache__/
