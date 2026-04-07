@@ -18,6 +18,7 @@ class zcl_zrpd_edev_ocr_py implementation.
           lv_param type string,
           lv_found type abap_bool,
           lt_bin   type standard table of x255,
+          ls_bin   type x255,
           lv_len   type i.
 
     " 1. Write PDF to disk via binary table
@@ -34,7 +35,6 @@ class zcl_zrpd_edev_ocr_py implementation.
       raise exception type zcx_zrpd_edev_api
         exporting mv_msgv1 = 'Cannot write temp PDF'.
     endif.
-    data ls_bin type x255.
     loop at lt_bin into ls_bin.
       transfer ls_bin to co_pdf.
     endloop.
