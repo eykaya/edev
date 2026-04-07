@@ -10,7 +10,7 @@
     <SCRLEN1>10</SCRLEN1>
     <SCRLEN2>15</SCRLEN2>
     <SCRLEN3>20</SCRLEN3>
-    <DDTEXT>Document Status</DDTEXT>
+    <DDTEXT>Doc Status</DDTEXT>
     <REPTEXT>Doc Status</REPTEXT>
     <SCRTEXT_S>Status</SCRTEXT_S>
     <SCRTEXT_M>Doc Status</SCRTEXT_M>

@@ -10,7 +10,7 @@
     <SCRLEN1>10</SCRLEN1>
     <SCRLEN2>15</SCRLEN2>
     <SCRLEN3>20</SCRLEN3>
-    <DDTEXT>Barcode Number</DDTEXT>
+    <DDTEXT>Barcode No</DDTEXT>
     <REPTEXT>Barcode No</REPTEXT>
     <SCRTEXT_S>Barcode</SCRTEXT_S>
     <SCRTEXT_M>Barcode No</SCRTEXT_M>
