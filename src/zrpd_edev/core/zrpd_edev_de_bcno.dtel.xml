@@ -11,7 +11,7 @@
     <SCRLEN2>15</SCRLEN2>
     <SCRLEN3>20</SCRLEN3>
     <DDTEXT>Barcode No</DDTEXT>
-    <REPTEXT>Barcode No</REPTEXT>
+    <REPTEXT>Barcode</REPTEXT>
     <SCRTEXT_S>Barcode</SCRTEXT_S>
     <SCRTEXT_M>Barcode No</SCRTEXT_M>
     <SCRTEXT_L>Barcode Number</SCRTEXT_L>
