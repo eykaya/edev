@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<abapGit version="v1.0.0" serializer="LCL_OBJECT_TABL" serializer_version="v1.0.0">
+ <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
+  <asx:values>
+   <DD02V>
+    <TABNAME>ZRPD_EDEV_S_DCVAL</TABNAME>
+    <DDLANGUAGE>E</DDLANGUAGE>
+    <TABCLASS>INTTAB</TABCLASS>
+    <DDTEXT>EDEV Extracted Value Structure</DDTEXT>
+    <EXCLASS>1</EXCLASS>
+   </DD02V>
+   <DD03P_TABLE>
+    <DD03P>
+     <FIELDNAME>MANDT</FIELDNAME>
+     <ROLLNAME>MANDT</ROLLNAME>
+     <COMPTYPE>E</COMPTYPE>
+    </DD03P>
+    <DD03P>
+     <FIELDNAME>DOC_GUID</FIELDNAME>
+     <ROLLNAME>ZRPD_EDEV_DE_GUID</ROLLNAME>
+     <COMPTYPE>E</COMPTYPE>
+    </DD03P>
+    <DD03P>
+     <FIELDNAME>FIELD_NAME</FIELDNAME>
+     <ROLLNAME>ZRPD_EDEV_DE_FLDNM</ROLLNAME>
+     <COMPTYPE>E</COMPTYPE>
+    </DD03P>
+    <DD03P>
+     <FIELDNAME>FIELD_VALUE</FIELDNAME>
+     <ROLLNAME>ZRPD_EDEV_DE_FLDVL</ROLLNAME>
+     <COMPTYPE>E</COMPTYPE>
+    </DD03P>
+    <DD03P>
+     <FIELDNAME>CONFIDENCE</FIELDNAME>
+     <INTTYPE>P</INTTYPE>
+     <INTLEN>000003</INTLEN>
+     <DATATYPE>DEC</DATATYPE>
+     <LENG>000005</LENG>
+     <DECIMALS>000002</DECIMALS>
+     <MASK>  DEC</MASK>
+    </DD03P>
+    <DD03P>
+     <FIELDNAME>EXTRACT_METHOD</FIELDNAME>
+     <ROLLNAME>ZRPD_EDEV_DE_EXMTH</ROLLNAME>
+     <COMPTYPE>E</COMPTYPE>
+    </DD03P>
+   </DD03P_TABLE>
+  </asx:values>
+ </asx:abap>
+</abapGit>

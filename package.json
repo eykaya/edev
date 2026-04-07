@@ -4,13 +4,21 @@
   "description": "Generic ABAP Development Environment — abaplint tooling",
   "private": true,
   "scripts": {
-    "lint": "./node_modules/.bin/abaplint src/",
-    "lint:fix": "./node_modules/.bin/abaplint src/ --fix"
+    "lint": "./node_modules/.bin/abaplint .abaplint.json",
+    "lint:fix": "./node_modules/.bin/abaplint .abaplint.json --fix"
   },
   "devDependencies": {
     "@abaplint/cli": "^2.118.8"
   },
-  "keywords": ["sap", "abap", "abapgit", "clean-abap"],
+  "keywords": [
+    "sap",
+    "abap",
+    "abapgit",
+    "clean-abap"
+  ],
   "author": "Emre Yalcinkaya",
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@mcp-abap-adt/core": "^4.8.7"
+  }
 }

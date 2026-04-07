@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<abapGit version="v1.0.0" serializer="LCL_OBJECT_MSAG" serializer_version="v1.0.0">
+ <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
+  <asx:values>
+   <T100A>
+    <ARBGB>ZRPD_EDEV_M</ARBGB>
+    <MASTERLANG>E</MASTERLANG>
+    <STEXT>HR Document Management Messages</STEXT>
+   </T100A>
+   <T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZRPD_EDEV_M</ARBGB>
+     <MSGNR>001</MSGNR>
+     <TEXT>Document type &amp;1 is not active</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZRPD_EDEV_M</ARBGB>
+     <MSGNR>002</MSGNR>
+     <TEXT>Employee &amp;1 not found or inactive</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZRPD_EDEV_M</ARBGB>
+     <MSGNR>003</MSGNR>
+     <TEXT>Document &amp;1 not found</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZRPD_EDEV_M</ARBGB>
+     <MSGNR>004</MSGNR>
+     <TEXT>Document uploaded successfully</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZRPD_EDEV_M</ARBGB>
+     <MSGNR>005</MSGNR>
+     <TEXT>Upload failed: &amp;1</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZRPD_EDEV_M</ARBGB>
+     <MSGNR>006</MSGNR>
+     <TEXT>e-Devlet verification successful</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZRPD_EDEV_M</ARBGB>
+     <MSGNR>007</MSGNR>
+     <TEXT>Verification failed: &amp;1</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZRPD_EDEV_M</ARBGB>
+     <MSGNR>008</MSGNR>
+     <TEXT>API error: &amp;1 &amp;2</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZRPD_EDEV_M</ARBGB>
+     <MSGNR>009</MSGNR>
+     <TEXT>Data extracted using &amp;1 method</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZRPD_EDEV_M</ARBGB>
+     <MSGNR>010</MSGNR>
+     <TEXT>All extraction methods failed</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZRPD_EDEV_M</ARBGB>
+     <MSGNR>011</MSGNR>
+     <TEXT>Wrong doc type: expected &amp;1, got &amp;2</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZRPD_EDEV_M</ARBGB>
+     <MSGNR>012</MSGNR>
+     <TEXT>&amp;1 fields mapped to IT&amp;2 infotype</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZRPD_EDEV_M</ARBGB>
+     <MSGNR>013</MSGNR>
+     <TEXT>Invalid barcode number</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZRPD_EDEV_M</ARBGB>
+     <MSGNR>014</MSGNR>
+     <TEXT>&amp;1 failed, switching to &amp;2 method</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZRPD_EDEV_M</ARBGB>
+     <MSGNR>015</MSGNR>
+     <TEXT>TC in doc (&amp;1) differs from record (&amp;2)</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZRPD_EDEV_M</ARBGB>
+     <MSGNR>016</MSGNR>
+     <TEXT>Doc expired: &amp;1 days ago (max &amp;2 days)</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZRPD_EDEV_M</ARBGB>
+     <MSGNR>017</MSGNR>
+     <TEXT>Same document type uploaded today</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZRPD_EDEV_M</ARBGB>
+     <MSGNR>018</MSGNR>
+     <TEXT>File size exceeded: &amp;1 MB (max &amp;2 MB)</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZRPD_EDEV_M</ARBGB>
+     <MSGNR>019</MSGNR>
+     <TEXT>IT0006 record created successfully</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZRPD_EDEV_M</ARBGB>
+     <MSGNR>020</MSGNR>
+     <TEXT>IT0006 record could not be created: &amp;1</TEXT>
+    </T100>
+   </T100>
+  </asx:values>
+ </asx:abap>
+</abapGit>

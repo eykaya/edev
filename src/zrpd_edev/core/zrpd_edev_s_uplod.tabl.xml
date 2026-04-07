@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<abapGit version="v1.0.0" serializer="LCL_OBJECT_TABL" serializer_version="v1.0.0">
+ <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
+  <asx:values>
+   <DD02V>
+    <TABNAME>ZRPD_EDEV_S_UPLOD</TABNAME>
+    <DDLANGUAGE>E</DDLANGUAGE>
+    <TABCLASS>INTTAB</TABCLASS>
+    <DDTEXT>EDEV Upload Transfer Structure</DDTEXT>
+    <EXCLASS>1</EXCLASS>
+   </DD02V>
+   <DD03P_TABLE>
+    <DD03P>
+     <FIELDNAME>PERNR</FIELDNAME>
+     <ROLLNAME>PERSNO</ROLLNAME>
+     <COMPTYPE>E</COMPTYPE>
+    </DD03P>
+    <DD03P>
+     <FIELDNAME>DOC_TYPE</FIELDNAME>
+     <ROLLNAME>ZRPD_EDEV_DE_DCTYP</ROLLNAME>
+     <COMPTYPE>E</COMPTYPE>
+    </DD03P>
+    <DD03P>
+     <FIELDNAME>FILE_NAME</FIELDNAME>
+     <INTTYPE>C</INTTYPE>
+     <INTLEN>000256</INTLEN>
+     <DATATYPE>CHAR</DATATYPE>
+     <LENG>000128</LENG>
+     <MASK>  CHAR</MASK>
+    </DD03P>
+    <DD03P>
+     <FIELDNAME>MIME_TYPE</FIELDNAME>
+     <INTTYPE>C</INTTYPE>
+     <INTLEN>000080</INTLEN>
+     <DATATYPE>CHAR</DATATYPE>
+     <LENG>000040</LENG>
+     <MASK>  CHAR</MASK>
+    </DD03P>
+    <DD03P>
+     <FIELDNAME>CONTENT</FIELDNAME>
+     <INTTYPE>r</INTTYPE>
+     <INTLEN>000000</INTLEN>
+     <DATATYPE>RSTR</DATATYPE>
+     <LENG>000000</LENG>
+     <MASK>  RSTR</MASK>
+    </DD03P>
+   </DD03P_TABLE>
+  </asx:values>
+ </asx:abap>
+</abapGit>
