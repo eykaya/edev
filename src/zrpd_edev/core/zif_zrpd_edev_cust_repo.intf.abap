@@ -1,5 +1,9 @@
 interface zif_zrpd_edev_cust_repo public.
 
+  types:
+    ty_t_dfld type standard table of zrpd_edev_t_dfld with default key,
+    ty_t_dmap type standard table of zrpd_edev_t_dmap with default key.
+
   methods get_doc_type
     importing
       iv_doc_type     type zrpd_edev_de_dctyp
@@ -12,18 +16,18 @@ interface zif_zrpd_edev_cust_repo public.
     importing
       iv_doc_type      type zrpd_edev_de_dctyp
     returning
-      value(rt_fields) type standard table of zrpd_edev_t_dfld with default key.
+      value(rt_fields) type ty_t_dfld.
 
   methods get_mappings
     importing
       iv_doc_type        type zrpd_edev_de_dctyp
     returning
-      value(rt_mappings) type standard table of zrpd_edev_t_dmap with default key.
+      value(rt_mappings) type ty_t_dmap.
 
   methods get_param
     importing
-      iv_key          type char30
+      iv_key          type c
     returning
-      value(rv_value) type char60.
+      value(rv_value) type string.
 
 endinterface.
