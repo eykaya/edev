@@ -117,14 +117,21 @@ class zcl_zrpd_edev_doc_base implementation.
   method extract_tckn.
     data: lo_regex   type ref to cl_abap_regex,
           lo_matcher type ref to cl_abap_matcher,
-          lv_match   type string.
+          lv_off     type i,
+          lv_len     type i.
 
-    lo_regex = cl_abap_regex=>create( pattern = '[1-9][0-9]{10}' ).
-    lo_matcher = lo_regex->create_matcher( text = iv_text ).
+    create object lo_regex
+      exporting
+        pattern = '[1-9][0-9]{10}'.
+    create object lo_matcher
+      exporting
+        regex = lo_regex
+        text  = iv_text.
 
     if lo_matcher->find_next( ) = abap_true.
-      lv_match = lo_matcher->get_match( ).
-      rv_tckn = lv_match.
+      lv_off = lo_matcher->get_offset( ).
+      lv_len = lo_matcher->get_length( ).
+      rv_tckn = iv_text+lv_off(lv_len).
     else.
       raise exception type zcx_zrpd_edev_extract
         exporting
@@ -135,14 +142,21 @@ class zcl_zrpd_edev_doc_base implementation.
   method extract_barcode.
     data: lo_regex   type ref to cl_abap_regex,
           lo_matcher type ref to cl_abap_matcher,
-          lv_match   type string.
+          lv_off     type i,
+          lv_len     type i.
 
-    lo_regex = cl_abap_regex=>create( pattern = '[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}' ).
-    lo_matcher = lo_regex->create_matcher( text = iv_text ).
+    create object lo_regex
+      exporting
+        pattern = '[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}'.
+    create object lo_matcher
+      exporting
+        regex = lo_regex
+        text  = iv_text.
 
     if lo_matcher->find_next( ) = abap_true.
-      lv_match = lo_matcher->get_match( ).
-      rv_barcode = lv_match.
+      lv_off = lo_matcher->get_offset( ).
+      lv_len = lo_matcher->get_length( ).
+      rv_barcode = iv_text+lv_off(lv_len).
     else.
       raise exception type zcx_zrpd_edev_extract
         exporting

@@ -259,10 +259,14 @@ class zcl_zrpd_edev_doc_ika implementation.
     clear ls_val.
     ls_val-field_name     = 'postal_code'.
     ls_val-extract_method = 'FORM'.
-    lo_regex   = cl_abap_regex=>create( pattern = '[0-9]{5}' ).
-    lo_matcher = lo_regex->create_matcher( text = iv_text ).
+    create object lo_regex exporting pattern = '[0-9]{5}'.
+    create object lo_matcher exporting regex = lo_regex text = iv_text.
     if lo_matcher->find_next( ) = abap_true.
-      lv_postal = lo_matcher->get_match( ).
+      data lv_p_off type i.
+      data lv_p_len type i.
+      lv_p_off = lo_matcher->get_offset( ).
+      lv_p_len = lo_matcher->get_length( ).
+      lv_postal = iv_text+lv_p_off(lv_p_len).
       ls_val-field_value = lv_postal.
       ls_val-confidence  = '100.00'.
     else.
@@ -352,11 +356,15 @@ class zcl_zrpd_edev_doc_ika implementation.
           lo_matcher type ref to cl_abap_matcher,
           lv_match   type string.
 
-    lo_regex   = cl_abap_regex=>create( pattern = '[0-9]{2}[.][0-9]{2}[.][0-9]{4}' ).
-    lo_matcher = lo_regex->create_matcher( text = iv_text ).
+    create object lo_regex exporting pattern = '[0-9]{2}[.][0-9]{2}[.][0-9]{4}'.
+    create object lo_matcher exporting regex = lo_regex text = iv_text.
 
     if lo_matcher->find_next( ) = abap_true.
-      lv_match = lo_matcher->get_match( ).
+      data lv_d_off type i.
+      data lv_d_len type i.
+      lv_d_off = lo_matcher->get_offset( ).
+      lv_d_len = lo_matcher->get_length( ).
+      lv_match = iv_text+lv_d_off(lv_d_len).
       try.
           rv_dats = parse_date( lv_match ).
         catch zcx_zrpd_edev_extract.
