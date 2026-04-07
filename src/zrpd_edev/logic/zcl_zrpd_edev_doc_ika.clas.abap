@@ -235,7 +235,7 @@ class zcl_zrpd_edev_doc_ika implementation.
     endif.
     append ls_val to rt_vals.
 
-    " City
+    " City - use 'IL:' not 'IL ' to avoid matching YILMAZ
     clear ls_val.
     ls_val-field_name     = 'city'.
     ls_val-extract_method = 'FORM'.
@@ -245,7 +245,7 @@ class zcl_zrpd_edev_doc_ika implementation.
     if lv_city = ''.
       lv_city = extract_by_label(
         iv_text  = iv_text
-        iv_label = 'IL ' ).
+        iv_label = 'IL:' ).
     endif.
     ls_val-field_value = lv_city.
     if lv_city = ''.
@@ -255,23 +255,35 @@ class zcl_zrpd_edev_doc_ika implementation.
     endif.
     append ls_val to rt_vals.
 
-    " Postal code
+    " Postal code - label-based first, then regex on label value
     clear ls_val.
     ls_val-field_name     = 'postal_code'.
     ls_val-extract_method = 'FORM'.
-    create object lo_regex exporting pattern = '[0-9]{5}'.
-    create object lo_matcher exporting regex = lo_regex text = iv_text.
-    if lo_matcher->find_next( ) = abap_true.
+    lv_postal = extract_by_label(
+      iv_text  = iv_text
+      iv_label = 'POSTA KODU' ).
+    if lv_postal = ''.
+      lv_postal = extract_by_label(
+        iv_text  = iv_text
+        iv_label = 'POSTA' ).
+    endif.
+    " extract only digits from the value
+    if lv_postal is not initial.
       data lv_p_off type i.
       data lv_p_len type i.
-      lv_p_off = lo_matcher->get_offset( ).
-      lv_p_len = lo_matcher->get_length( ).
-      lv_postal = iv_text+lv_p_off(lv_p_len).
-      ls_val-field_value = lv_postal.
-      ls_val-confidence  = '100.00'.
+      create object lo_regex exporting pattern = '[0-9]{5}'.
+      create object lo_matcher exporting regex = lo_regex text = lv_postal.
+      if lo_matcher->find_next( ) = abap_true.
+        lv_p_off = lo_matcher->get_offset( ).
+        lv_p_len = lo_matcher->get_length( ).
+        lv_postal = lv_postal+lv_p_off(lv_p_len).
+      endif.
+    endif.
+    ls_val-field_value = lv_postal.
+    if lv_postal = ''.
+      ls_val-confidence = '0.00'.
     else.
-      ls_val-field_value = ''.
-      ls_val-confidence  = '0.00'.
+      ls_val-confidence = '80.00'.
     endif.
     append ls_val to rt_vals.
   endmethod.
