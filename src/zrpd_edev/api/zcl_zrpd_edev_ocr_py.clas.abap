@@ -16,15 +16,28 @@ class zcl_zrpd_edev_ocr_py implementation.
     data: lt_log   type table of btcxpm,
           ls_log   type btcxpm,
           lv_param type string,
-          lv_found type abap_bool.
+          lv_found type abap_bool,
+          lt_bin   type standard table of x255,
+          lv_len   type i.
 
-    " 1. Write PDF to disk
+    " 1. Write PDF to disk via binary table
+    call function 'SCMS_XSTRING_TO_BINARY'
+      exporting
+        buffer        = iv_content
+      importing
+        output_length = lv_len
+      tables
+        binary_tab    = lt_bin.
+
     open dataset co_pdf for output in binary mode.
     if sy-subrc is not initial.
       raise exception type zcx_zrpd_edev_api
         exporting mv_msgv1 = 'Cannot write temp PDF'.
     endif.
-    transfer iv_content to co_pdf.
+    data ls_bin type x255.
+    loop at lt_bin into ls_bin.
+      transfer ls_bin to co_pdf.
+    endloop.
     close dataset co_pdf.
 
     " 2. Run Python OCR script
