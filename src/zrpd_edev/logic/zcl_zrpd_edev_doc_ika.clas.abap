@@ -106,7 +106,9 @@ class zcl_zrpd_edev_doc_ika implementation.
           lv_district type string,
           lv_city     type string,
           lv_dats     type dats,
-          lv_count    type i.
+          lv_count    type i,
+          lv_ad_full  type string,
+          lv_dats_str type string.
 
     " TCKN
     lv_tckn = extract_by_label(
@@ -152,17 +154,17 @@ class zcl_zrpd_edev_doc_ika implementation.
         ev_adi   = lv_adi
         ev_soyad = lv_soyadi ).
     if lv_adi is not initial and lv_soyadi is not initial.
-      ls_val-field_value = to_upper( lv_adi && | | && lv_soyadi ).
+      lv_ad_full = to_upper( lv_adi && | | && lv_soyadi ).
     elseif lv_adi is not initial.
-      ls_val-field_value = to_upper( lv_adi ).
+      lv_ad_full = to_upper( lv_adi ).
     else.
-      ls_val-field_value = ''.
+      lv_ad_full = ''.
     endif.
     append_field(
       exporting
         iv_name       ='ad_soyad'
-        iv_value      = ls_val-field_value
-        iv_confidence = cond #( when ls_val-field_value = '' then '0.00' else '90.00' )
+        iv_value      = lv_ad_full
+        iv_confidence = cond #( when lv_ad_full = '' then '0.00' else '90.00' )
       changing
         ct_vals       = rt_vals ).
 
@@ -253,10 +255,11 @@ class zcl_zrpd_edev_doc_ika implementation.
         changing
           ct_vals       = rt_vals ).
     else.
+      lv_dats_str = lv_dats.
       append_field(
         exporting
           iv_name       = 'belge_tarihi'
-          iv_value      = lv_dats
+          iv_value      = lv_dats_str
           iv_confidence = '100.00'
         changing
           ct_vals       = rt_vals ).
@@ -772,9 +775,7 @@ class zcl_zrpd_edev_doc_ika implementation.
           lv_site_pos    type i,
           lv_site_len    type i,
           lv_blok_pos    type i,
-          lv_blok_len    type i,
           lv_site_end    type i,
-          lv_before_blok type string,
           lv_cad_sk_end  type i,
           lv_prefix_pos  type i,
           lv_prefix_len  type i,
@@ -806,7 +807,7 @@ class zcl_zrpd_edev_doc_ika implementation.
       lv_site_end = strlen( lv_up ).
     endif.
 
-    find last occurrence of
+    find all occurrences of
       regex '(?:CAD\.|SK\.|SOK\.|SOKAK|SOKAGI)\s*'
       in lv_up match offset lv_prefix_pos match length lv_prefix_len.
     if sy-subrc = 0.
