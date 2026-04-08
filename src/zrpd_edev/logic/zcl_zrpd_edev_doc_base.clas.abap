@@ -136,7 +136,7 @@ class zcl_zrpd_edev_doc_base implementation.
       endif.
       lv_near = substring( val = iv_text off = lv_offset len = lv_remain ).
       find first occurrence of regex '[1-9][0-9]{10}'
-        in lv_near match offset lv_offset length lv_length.
+        in lv_near match offset lv_offset match length lv_length.
       if sy-subrc = 0.
         rv_tckn = substring( val = lv_near off = lv_offset len = lv_length ).
         return.
@@ -145,7 +145,7 @@ class zcl_zrpd_edev_doc_base implementation.
 
     " Strategy 2
     find first occurrence of regex '[1-9][0-9]{10}'
-      in iv_text match offset lv_offset length lv_length.
+      in iv_text match offset lv_offset match length lv_length.
     if sy-subrc = 0.
       rv_tckn = substring( val = iv_text off = lv_offset len = lv_length ).
     else.
@@ -165,7 +165,7 @@ class zcl_zrpd_edev_doc_base implementation.
     endif.
 
     find first occurrence of regex '[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}'
-      in iv_text match offset lv_offset length lv_length.
+      in iv_text match offset lv_offset match length lv_length.
     if sy-subrc = 0.
       rv_barcode = substring( val = iv_text off = lv_offset len = lv_length ).
     else.

@@ -25,16 +25,16 @@ class zcl_zrpd_edev_doc_fac implementation.
 
     if sy-subrc is not initial or lv_class is initial.
       lv_msg = iv_doc_type.
-      raise exception new zcx_zrpd_edev_valid(
-        mv_msgv1 = lv_msg ).
+      raise exception type zcx_zrpd_edev_valid
+        exporting mv_msgv1 = lv_msg.
     endif.
 
     try.
         create object ro_parser type (lv_class).
       catch cx_sy_create_object_error.
         lv_msg = lv_class.
-        raise exception new zcx_zrpd_edev_valid(
-          mv_msgv1 = lv_msg ).
+        raise exception type zcx_zrpd_edev_valid
+          exporting mv_msgv1 = lv_msg.
     endtry.
   endmethod.
 
