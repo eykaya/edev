@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
 """
-ZRPD_EDEV OCR Extract — PDF'ten metin cikartma ve parse etme.
+ZRPD_EDEV OCR Extract — PDF'ten metin cikartma (OCR-only).
+
+Mimari: Python sadece OCR yapar, tum text parsing ABAP DOC_IKA'da.
+Output: {"ocr_text": "...", "barcode": "...", "ocr_text_length": N}
 
 Kullanim:
-  python3 tools/ocr_extract.py <pdf_dosya_yolu>
-  python3 tools/ocr_extract.py --from-sap          # T_DOC'tan son PDF'i al
+  python3 tools/ocr_extract.py <pdf_dosya_yolu>                    # stdout pretty
+  python3 tools/ocr_extract.py <pdf_dosya_yolu> --json              # stdout JSON
+  python3 tools/ocr_extract.py <pdf_dosya_yolu> <json_output_yolu>  # SAP modu
 
 Gereksinimler:
   pip install pymupdf pytesseract pillow
   brew install tesseract tesseract-lang
+  pip install pyzbar  (opsiyonel, barkod tanima icin)
 """
 
 import sys
@@ -16,8 +21,8 @@ import os
 import re
 import json
 import io
-import base64
 import argparse
+
 
 def extract_text_from_pdf(pdf_path: str) -> str:
     """PDF'ten OCR ile metin cikar."""
@@ -37,9 +42,11 @@ def extract_text_from_pdf(pdf_path: str) -> str:
             full_text.append(text)
             continue
 
-        # Native text yoksa OCR
-        pix = page.get_pixmap(dpi=300)
+        # Native text yoksa OCR — DPI 200, ust %60 crop
+        pix = page.get_pixmap(dpi=200)
         img = Image.open(io.BytesIO(pix.tobytes("png")))
+        w, h = img.size
+        img = img.crop((0, 0, w, int(h * 0.6)))
         text = pytesseract.image_to_string(img, lang='tur')
         full_text.append(text)
 
@@ -63,8 +70,11 @@ def extract_text_from_bytes(pdf_bytes: bytes) -> str:
             full_text.append(text)
             continue
 
-        pix = page.get_pixmap(dpi=300)
+        # OCR — DPI 200, ust %60 crop
+        pix = page.get_pixmap(dpi=200)
         img = Image.open(io.BytesIO(pix.tobytes("png")))
+        w, h = img.size
+        img = img.crop((0, 0, w, int(h * 0.6)))
         text = pytesseract.image_to_string(img, lang='tur')
         full_text.append(text)
 
@@ -72,163 +82,95 @@ def extract_text_from_bytes(pdf_bytes: bytes) -> str:
     return "\n".join(full_text)
 
 
-def parse_ikametgah(text: str) -> dict:
-    """OCR metninden ikametgah belgesi alanlarini cikar."""
-    result = {}
+def decode_barcode_from_image(pdf_path: str) -> str:
+    """PDF'in ilk sayfasindan barkodu image-based decode et.
 
-    # TCKN — 'Kimlik No' label sonrasi veya ilk 11-haneli sayi
-    tckn = None
-    m = re.search(r'Kimlik\s*No\s*[:\s]+(\d{11})', text, re.IGNORECASE)
-    if m:
-        tckn = m.group(1)
-    else:
-        m = re.search(r'[1-9]\d{10}', text)
-        if m:
-            tckn = m.group(0)
-    result['tckn'] = tckn or ''
+    pyzbar yuklu degilse veya barkod bulunamazsa bos string doner.
+    """
+    try:
+        from pyzbar.pyzbar import decode as pyzbar_decode
+        import fitz
+        from PIL import Image
 
-    # TCKN checksum
-    if tckn and len(tckn) == 11:
-        d = [int(c) for c in tckn]
-        odd = d[0] + d[2] + d[4] + d[6] + d[8]
-        even = d[1] + d[3] + d[5] + d[7]
-        d10 = (odd * 7 - even) % 10
-        d11 = (sum(d[:9]) + d10) % 10
-        result['tckn_valid'] = (d10 == d[9] and d11 == d[10])
-    else:
-        result['tckn_valid'] = False
+        doc = fitz.open(pdf_path)
+        page = doc[0]
+        pix = page.get_pixmap(dpi=200)
+        img = Image.open(io.BytesIO(pix.tobytes("png")))
 
-    # Barkod — XXXX-XXXX-XXXX-XXXX
-    m = re.search(r'[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}', text)
-    result['barcode'] = m.group(0) if m else ''
+        # Barkod genellikle sayfanin ust 1/4'unda
+        w, h = img.size
+        img_top = img.crop((0, 0, w, int(h * 0.25)))
 
-    # Adi
-    m = re.search(r'\bAd[ıi]\s*[:\s]+(\S+)', text, re.IGNORECASE)
-    result['adi'] = m.group(1).strip() if m else ''
+        barcodes = pyzbar_decode(img_top)
+        doc.close()
 
-    # Soyadi
-    m = re.search(r'Soyad[ıi]\s*[:\s]+(\S+)', text, re.IGNORECASE)
-    result['soyadi'] = m.group(1).strip() if m else ''
-
-    result['full_name'] = f"{result['adi']} {result['soyadi']}".strip()
-
-    # Adres — MAH. ... / SEHIR formatinda satir(lar) bul
-    # OCR ciktisinda adres birden fazla satira bolunebilir:
-    #   "YAVUZTURK MAH. PAZAR SK. NO: 23 IC"
-    #   "Adresi"
-    #   "KAPI NO: 3 USKUDAR / ISTANBUL"
-    address_parts = []
-    lines = text.split('\n')
-    mah_idx = -1
-    slash_idx = -1
-
-    for i, line in enumerate(lines):
-        up = line.upper().strip()
-        if 'MAH' in up and mah_idx < 0:
-            mah_idx = i
-        if mah_idx >= 0 and '/' in up and slash_idx < 0:
-            slash_idx = i
-
-    if mah_idx >= 0 and slash_idx >= 0:
-        for i in range(mah_idx, slash_idx + 1):
-            part = lines[i].strip()
-            # "Adresi", "Yeri" gibi gereksiz satirlari atla
-            if part and len(part) > 6 and part.upper() not in ('ADRESI', 'ADRES'):
-                address_parts.append(part)
-        address_line = ' '.join(address_parts)
-    elif mah_idx >= 0:
-        address_line = lines[mah_idx].strip()
-    else:
-        address_line = ''
-
-    # Adres No prefix temizle: "Yerlesim Yeri 2467013534 |" gibi
-    address_line = re.sub(r'^.*?\|\s*', '', address_line)
-
-    result['full_address'] = address_line
-
-    # Adres parcalama
-    if '/' in address_line:
-        before_slash, after_slash = address_line.rsplit('/', 1)
-        result['city'] = after_slash.strip()
-
-        words = before_slash.strip().split()
-        result['district'] = words[-1] if words else ''
-
-        mah_pos = address_line.upper().find('MAH')
-        if mah_pos >= 0:
-            result['neighborhood'] = address_line[:mah_pos].strip()
-            # Sayisal prefix temizle (2467013534 gibi adres no)
-            result['neighborhood'] = re.sub(r'^\d+\s*\|?\s*', '', result['neighborhood']).strip()
-
-            dot_pos = address_line.find('.', mah_pos)
-            street_start = dot_pos + 1 if dot_pos >= 0 else mah_pos + 3
-            street_end = before_slash.rfind(result['district']) if result['district'] else len(before_slash)
-            result['street_address'] = address_line[street_start:street_end].strip()
-        else:
-            result['neighborhood'] = ''
-            result['street_address'] = before_slash.strip()
-    else:
-        result['city'] = ''
-        result['district'] = ''
-        result['neighborhood'] = ''
-        result['street_address'] = address_line
-
-    # Tarih — DD.MM.YYYY
-    dates = re.findall(r'\d{2}\.\d{2}\.\d{4}', text)
-    result['issue_date'] = dates[0] if dates else ''
-    result['valid_until'] = dates[1] if len(dates) > 1 else ''
-
-    result['country'] = 'TR'
-
-    return result
+        for bc in barcodes:
+            data = bc.data.decode('utf-8')
+            # NVI barkod formati: XXXX-XXXX-XXXX-XXXX
+            if re.match(
+                r'^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$', data
+            ):
+                return data
+        return ''
+    except ImportError:
+        return ''
+    except Exception:
+        return ''
 
 
 def main():
     parser = argparse.ArgumentParser(description='EDEV PDF OCR Extract')
-    parser.add_argument('pdf_file', nargs='?', help='PDF dosya yolu')
-    parser.add_argument('--json', action='store_true', help='JSON cikti')
+    parser.add_argument('pdf_file', help='PDF dosya yolu')
+    parser.add_argument(
+        'json_output', nargs='?', default=None,
+        help='JSON cikti dosya yolu (SAP modu)'
+    )
+    parser.add_argument(
+        '--json', action='store_true', help='JSON stdout cikti'
+    )
     args = parser.parse_args()
 
-    if not args.pdf_file:
-        print("Kullanim: python3 tools/ocr_extract.py <pdf_dosya.pdf>")
-        sys.exit(1)
-
     if not os.path.exists(args.pdf_file):
-        print(f"Dosya bulunamadi: {args.pdf_file}")
+        print(f"Dosya bulunamadi: {args.pdf_file}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"PDF: {args.pdf_file}")
-    print("OCR yapiliyor...")
-
+    # OCR
     text = extract_text_from_pdf(args.pdf_file)
 
     if not text.strip():
-        print("HATA: Metin cikartilamadi!")
+        print("HATA: Metin cikartilamadi!", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Metin uzunlugu: {len(text)} karakter")
-    print()
+    # Barcode — pyzbar ile image-based decode
+    barcode = decode_barcode_from_image(args.pdf_file)
 
-    result = parse_ikametgah(text)
+    result = {
+        "ocr_text": text,
+        "barcode": barcode,
+        "ocr_text_length": len(text),
+    }
 
-    if args.json:
+    if args.json_output:
+        # SAP modu: JSON dosyaya yaz + OCR_DONE stdout'a
+        with open(args.json_output, 'w', encoding='utf-8') as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)
+        print("OCR_DONE")
+    elif args.json:
+        # CLI JSON modu
         print(json.dumps(result, ensure_ascii=False, indent=2))
     else:
-        print("=" * 50)
-        print(f"TCKN      : {result['tckn']} {'(GECERLI)' if result['tckn_valid'] else '(HATALI)'}")
-        print(f"Barkod    : {result['barcode']}")
-        print(f"Ad Soyad  : {result['full_name']}")
-        print(f"Mahalle   : {result['neighborhood']}")
-        print(f"Sokak     : {result['street_address']}")
-        print(f"Ilce      : {result['district']}")
-        print(f"Il        : {result['city']}")
-        print(f"Belge Tar : {result['issue_date']}")
-        print(f"Gecerlilik: {result['valid_until']}")
-        print(f"Ulke      : {result['country']}")
-        print("=" * 50)
-        print()
-        print("--- OCR RAW TEXT ---")
+        # Pretty-print modu
+        print(f"PDF: {args.pdf_file}")
+        print(f"OCR Metin ({len(text)} karakter):")
+        print("-" * 50)
         print(text[:500])
+        if len(text) > 500:
+            print(f"... ({len(text) - 500} karakter daha)")
+        print("-" * 50)
+        if barcode:
+            print(f"Barkod: {barcode}")
+        else:
+            print("Barkod: (bulunamadi)")
 
 
 if __name__ == '__main__':

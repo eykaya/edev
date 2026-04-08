@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """
-RapidHCM Planner Helper — CLI tool for Microsoft Planner operations.
+EDEV Planner Helper — CLI tool for Microsoft Planner operations.
 
-Token is cached to ~/.rapidhcm/planner_token_cache.json
+Token is cached to ~/.edev/planner_token_cache.json
 First run requires device code login, subsequent runs use cached token.
 
 Usage:
     python3 planner_helper.py plans                     # List plans
-    python3 planner_helper.py create-plan <title>       # Create plan in RapidHCM group
+    python3 planner_helper.py create-plan <title>       # Create plan in EDEV group
     python3 planner_helper.py buckets <plan_id>         # List buckets
     python3 planner_helper.py create-bucket <plan_id> <name>  # Create bucket
     python3 planner_helper.py tasks <plan_id>           # List tasks
     python3 planner_helper.py create-task <plan_id> <bucket_id> <title>  # Create task
     python3 planner_helper.py setup-phase0 <plan_id>    # Create Phase 0 buckets + cards
-    python3 planner_helper.py check-group               # Check if RapidHCM group has Planner
+    python3 planner_helper.py check-group               # Check if EDEV group has Planner
 """
 import asyncio
 import json
@@ -27,23 +27,23 @@ CLIENT_ID = "58d322e1-82bb-489d-9c9e-15f1032f236f"
 # ZRPD_EDEV group — Personel Dokuman Yonetim Sistemi
 EDEV_GROUP_ID = "c60d937c-65cc-4461-a841-0aaf9b4ac6e7"
 SCOPES = ["Tasks.ReadWrite", "Group.ReadWrite.All"]
-CACHE_PATH = Path.home() / ".rapidhcm" / "planner_token_cache.json"
+CACHE_PATH = Path.home() / ".edev" / "planner_token_cache.json"
 
 PHASE0_BUCKETS = ["Done", "Review", "In Progress", "Sprint 1", "Backlog"]
 
 PHASE0_CARDS = [
-    "RAPID-001: .NET solution scaffold + NuGet + Directory.Build.props",
-    "RAPID-002: Core entities (Base, Auditable, Tenant, Company, User) + migration",
-    "RAPID-003: Auth altyapısı (JWT + SuperAdmin + TenantResolution middleware)",
-    "RAPID-004: Docker altyapısı (.env SSOT + compose + Traefik + Dockerfile)",
-    "RAPID-005: Ana UI scaffold + login sayfası + JWT auth flow",
-    "RAPID-006: Admin UI scaffold + Tenant/Company CRUD",
-    "RAPID-007: Pre-commit hook (build + test + lint)",
-    "RAPID-008: Jenkins pipeline (Jenkinsfile + develop auto-deploy)",
-    "RAPID-009: Cloudflare DNS (wildcard subdomain + SSL)",
-    "RAPID-010: Init Setup Guide güncelle (monorepo → multi-repo submodule)",
-    "RAPID-011: .claude/agents + GitHub MCP + skill doğrulama",
-    "RAPID-012: Doğrulama sprint (docker-compose up → login → tenant → API)",
+    "EDEV-A1: OCR performans (DPI + crop)",
+    "EDEV-A2: Barkod tanima (pyzbar)",
+    "EDEV-A3: Adres no fallback",
+    "EDEV-A4: Ad soyad temizleme",
+    "EDEV-B1: e-Devlet API class (ZCL_ZRPD_EDEV_EDEVLET)",
+    "EDEV-B2: SM59 + STRUST kurulumu",
+    "EDEV-C1: Orchestrator (ZCL_ZRPD_EDEV_DOC_MGR)",
+    "EDEV-C2: IT0006 Mapper (ZCL_ZRPD_EDEV_IT_MAP)",
+    "EDEV-D1: Upload raporu (ZRPD_EDEV_R_UPLOAD)",
+    "EDEV-D2: Liste raporu (ZRPD_EDEV_R_LIST)",
+    "EDEV-E1: Mock class'lar + Unit test",
+    "EDEV-F1: DDIC tamamlama + Transport release",
 ]
 
 

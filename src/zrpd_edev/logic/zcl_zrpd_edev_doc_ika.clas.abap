@@ -113,10 +113,16 @@ class zcl_zrpd_edev_doc_ika implementation.
     if lv_adi = ''.
       lv_adi = extract_by_label( iv_text = iv_text iv_label = 'ADI SOYADI' ).
     endif.
+    " OCR gurultusu temizle: bastaki !:; karakterleri
+    replace regex '^[!:;]+' in lv_adi with ''.
+    condense lv_adi.
+
     lv_soyadi = extract_by_label( iv_text = iv_text iv_label = 'Soyadi' ).
     if lv_soyadi = ''.
       lv_soyadi = extract_by_label( iv_text = iv_text iv_label = 'Soyad' ).
     endif.
+    replace regex '^[!:;]+' in lv_soyadi with ''.
+    condense lv_soyadi.
     if lv_adi is not initial and lv_soyadi is not initial.
       ls_val-field_value = to_upper( lv_adi && | | && lv_soyadi ).
     elseif lv_adi is not initial.
@@ -222,19 +228,29 @@ class zcl_zrpd_edev_doc_ika implementation.
       condense lv_line.
       if lv_line cs 'MAH' and lv_line cs '/'.
         rv_address = lv_line.
-        return.
+        exit.
       endif.
     endloop.
 
-    loop at lt_lines into lv_line.
-      condense lv_line.
-      if lv_line cs 'MAH'.
-        rv_address = lv_line.
-        return.
-      endif.
-    endloop.
+    if rv_address is initial.
+      loop at lt_lines into lv_line.
+        condense lv_line.
+        if lv_line cs 'MAH'.
+          rv_address = lv_line.
+          exit.
+        endif.
+      endloop.
+    endif.
 
-    rv_address = extract_by_label( iv_text = iv_text iv_label = 'Adres' ).
+    if rv_address is initial.
+      rv_address = extract_by_label(
+        iv_text  = iv_text
+        iv_label = 'Adres' ).
+    endif.
+
+    " Adres no prefix temizle: 10 haneli sayi ve/veya | isaretini sil
+    replace regex '^\d{10}\s*\|?\s*' in rv_address with ''.
+    condense rv_address.
   endmethod.
 
   method parse_address_line.
