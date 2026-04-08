@@ -178,12 +178,62 @@ class zcl_zrpd_edev_doc_ika implementation.
     ls_val-confidence     = cond #( when lv_neighbor = '' then '0.00' else '80.00' ).
     append ls_val to rt_vals.
 
-    " Street address
+    " Street (cadde/sokak adi)
+    data: lv_street_name type string,
+          lv_bldg_no     type string,
+          lv_door_no     type string,
+          lv_no_off      type i.
+
+    lv_street_name = lv_street.
+
+    " NO: xx IC KAPI NO: yy pattern'i ayristir
+    find first occurrence of regex 'NO\s*:\s*(\d+)\s+IC\s+KAPI\s+NO\s*:\s*(\d+)'
+      in to_upper( lv_street )
+      submatches lv_bldg_no lv_door_no.
+    if sy-subrc = 0.
+      " Sokak adi: NO: oncesi
+      find first occurrence of regex '\s*NO\s*:' in to_upper( lv_street )
+        match offset lv_no_off.
+      if sy-subrc = 0 and lv_no_off is not initial.
+        lv_street_name = lv_street(lv_no_off).
+        condense lv_street_name.
+      endif.
+    else.
+      " Sadece NO: xx (ic kapi yok)
+      find first occurrence of regex 'NO\s*:\s*(\d+)'
+        in to_upper( lv_street )
+        submatches lv_bldg_no.
+      if sy-subrc = 0.
+        find first occurrence of regex '\s*NO\s*:' in to_upper( lv_street )
+          match offset lv_no_off.
+        if sy-subrc = 0 and lv_no_off is not initial.
+          lv_street_name = lv_street(lv_no_off).
+          condense lv_street_name.
+        endif.
+      endif.
+    endif.
+
     clear ls_val.
-    ls_val-field_name     = 'street_address'.
+    ls_val-field_name     = 'street'.
     ls_val-extract_method = 'FORM'.
-    ls_val-field_value    = lv_street.
-    ls_val-confidence     = cond #( when lv_street = '' then '0.00' else '80.00' ).
+    ls_val-field_value    = lv_street_name.
+    ls_val-confidence     = cond #( when lv_street_name = '' then '0.00' else '80.00' ).
+    append ls_val to rt_vals.
+
+    " Building no (dis kapi no)
+    clear ls_val.
+    ls_val-field_name     = 'building_no'.
+    ls_val-extract_method = 'FORM'.
+    ls_val-field_value    = lv_bldg_no.
+    ls_val-confidence     = cond #( when lv_bldg_no = '' then '0.00' else '80.00' ).
+    append ls_val to rt_vals.
+
+    " Door no (ic kapi no)
+    clear ls_val.
+    ls_val-field_name     = 'door_no'.
+    ls_val-extract_method = 'FORM'.
+    ls_val-field_value    = lv_door_no.
+    ls_val-confidence     = cond #( when lv_door_no = '' then '0.00' else '80.00' ).
     append ls_val to rt_vals.
 
     " District
@@ -445,6 +495,23 @@ class zcl_zrpd_edev_doc_ika implementation.
 
       condense lv_line.
       rv_value = lv_line.
+
+      " Deger bossa alt satira bak (OCR'da label ve deger ayri satirlarda olabiliyor)
+      if rv_value is initial and lv_nl_pos is not initial.
+        data: lv_rest2  type string,
+              lv_nl_pos2 type i.
+        lv_rest2 = lv_rest+lv_nl_pos.
+        " Bastaki newline'i atla
+        shift lv_rest2 left deleting leading cl_abap_char_utilities=>newline.
+        find first occurrence of cl_abap_char_utilities=>newline
+          in lv_rest2 match offset lv_nl_pos2.
+        if sy-subrc = 0.
+          rv_value = lv_rest2(lv_nl_pos2).
+        else.
+          rv_value = lv_rest2.
+        endif.
+        condense rv_value.
+      endif.
     else.
       rv_value = ''.
     endif.
