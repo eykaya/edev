@@ -131,8 +131,38 @@ class zcl_zrpd_edev_doc_ika implementation.
     ls_val-confidence = cond #( when ls_val-field_value = '' then '0.00' else '90.00' ).
     append ls_val to rt_vals.
 
+    " --- ADDRESS NO ---
+    clear ls_val.
+    ls_val-field_name     = 'address_no'.
+    ls_val-extract_method = 'FORM'.
+    ls_val-field_value    = extract_by_label(
+      iv_text  = iv_text
+      iv_label = 'Adres No' ).
+    " Fallback: 10 haneli sayi ara
+    if ls_val-field_value is initial.
+      find first occurrence of regex '[0-9]{10}'
+        in iv_text match offset data(lv_ano_off) match length data(lv_ano_len).
+      if sy-subrc = 0.
+        ls_val-field_value = substring(
+          val = iv_text
+          off = lv_ano_off
+          len = lv_ano_len ).
+      endif.
+    endif.
+    ls_val-confidence = cond #( when ls_val-field_value = '' then '0.00' else '100.00' ).
+    append ls_val to rt_vals.
+
     " --- ADDRESS PARSING ---
     lv_address = find_address_line( iv_text ).
+
+    " Full address (tam adres satiri)
+    clear ls_val.
+    ls_val-field_name     = 'full_address'.
+    ls_val-extract_method = 'FORM'.
+    ls_val-field_value    = lv_address.
+    ls_val-confidence     = cond #( when lv_address = '' then '0.00' else '80.00' ).
+    append ls_val to rt_vals.
+
     parse_address_line(
       exporting iv_address = lv_address
       importing ev_neighborhood = lv_neighbor
@@ -217,36 +247,65 @@ class zcl_zrpd_edev_doc_ika implementation.
   endmethod.
 
   method find_address_line.
-    data: lv_upper type string,
-          lt_lines type standard table of string,
-          lv_line  type string.
+    data: lv_upper   type string,
+          lt_lines   type standard table of string,
+          lv_line    type string,
+          lv_mah_idx type i,
+          lv_end_idx type i,
+          lv_idx     type i.
 
     lv_upper = to_upper( iv_text ).
     split lv_upper at cl_abap_char_utilities=>newline into table lt_lines.
 
+    " MAH satirini bul
+    lv_mah_idx = 0.
     loop at lt_lines into lv_line.
+      lv_idx = sy-tabix.
       condense lv_line.
-      if lv_line cs 'MAH' and lv_line cs '/'.
-        rv_address = lv_line.
+      if lv_line cs 'MAH'.
+        lv_mah_idx = lv_idx.
         exit.
       endif.
     endloop.
 
-    if rv_address is initial.
-      loop at lt_lines into lv_line.
-        condense lv_line.
-        if lv_line cs 'MAH'.
-          rv_address = lv_line.
-          exit.
-        endif.
-      endloop.
-    endif.
-
-    if rv_address is initial.
+    if lv_mah_idx = 0.
       rv_address = extract_by_label(
         iv_text  = iv_text
         iv_label = 'Adres' ).
+      replace regex '^\d{10}\s*\|?\s*' in rv_address with ''.
+      condense rv_address.
+      return.
     endif.
+
+    " MAH satirindan itibaren / iceren satiri bul (cok satirli adres)
+    lv_end_idx = lv_mah_idx.
+    loop at lt_lines into lv_line from lv_mah_idx.
+      lv_idx = sy-tabix.
+      condense lv_line.
+      if lv_line cs '/'.
+        lv_end_idx = lv_idx.
+        exit.
+      endif.
+      " Max 3 satir ileri bak
+      if lv_idx - lv_mah_idx > 2.
+        exit.
+      endif.
+    endloop.
+
+    " MAH'tan / satirana kadar birlestir
+    loop at lt_lines into lv_line from lv_mah_idx to lv_end_idx.
+      condense lv_line.
+      if lv_line is not initial
+        and strlen( lv_line ) > 3
+        and lv_line ns 'ADRESI'
+        and lv_line ns 'ADRES TIPI'.
+        if rv_address is initial.
+          rv_address = lv_line.
+        else.
+          rv_address = rv_address && | | && lv_line.
+        endif.
+      endif.
+    endloop.
 
     " Adres no prefix temizle: 10 haneli sayi ve/veya | isaretini sil
     replace regex '^\d{10}\s*\|?\s*' in rv_address with ''.

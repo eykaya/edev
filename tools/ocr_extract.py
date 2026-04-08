@@ -24,11 +24,20 @@ import io
 import argparse
 
 
+def _configure_tesseract():
+    """SAP sunucusunda Tesseract yolunu ayarla."""
+    import pytesseract
+    tesseract_path = r'F:\usr\sap\Tesseract-OCR\tesseract.exe'
+    if os.path.exists(tesseract_path):
+        pytesseract.pytesseract.tesseract_cmd = tesseract_path
+
+
 def extract_text_from_pdf(pdf_path: str) -> str:
     """PDF'ten OCR ile metin cikar."""
     import fitz
     from PIL import Image
     import pytesseract
+    _configure_tesseract()
 
     doc = fitz.open(pdf_path)
     full_text = []
@@ -42,11 +51,9 @@ def extract_text_from_pdf(pdf_path: str) -> str:
             full_text.append(text)
             continue
 
-        # Native text yoksa OCR — DPI 200, ust %60 crop
+        # Native text yoksa OCR — DPI 200
         pix = page.get_pixmap(dpi=200)
         img = Image.open(io.BytesIO(pix.tobytes("png")))
-        w, h = img.size
-        img = img.crop((0, 0, w, int(h * 0.6)))
         text = pytesseract.image_to_string(img, lang='tur')
         full_text.append(text)
 
@@ -59,6 +66,7 @@ def extract_text_from_bytes(pdf_bytes: bytes) -> str:
     import fitz
     from PIL import Image
     import pytesseract
+    _configure_tesseract()
 
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
     full_text = []
@@ -70,11 +78,9 @@ def extract_text_from_bytes(pdf_bytes: bytes) -> str:
             full_text.append(text)
             continue
 
-        # OCR — DPI 200, ust %60 crop
+        # OCR — DPI 200
         pix = page.get_pixmap(dpi=200)
         img = Image.open(io.BytesIO(pix.tobytes("png")))
-        w, h = img.size
-        img = img.crop((0, 0, w, int(h * 0.6)))
         text = pytesseract.image_to_string(img, lang='tur')
         full_text.append(text)
 
