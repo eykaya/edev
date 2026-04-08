@@ -127,8 +127,9 @@ start-of-selection.
 
       lt_vals = lo_parser->parse_fields( lv_text ).
       loop at lt_vals into ls_val.
-        write: / ls_val-field_name, ':', ls_val-field_value,
-                 '(conf=', ls_val-confidence, ')'.
+        data lv_out type string.
+        lv_out = |{ ls_val-field_name width = 15 align = left }: { ls_val-field_value } (conf={ ls_val-confidence })|.
+        write: / lv_out.
       endloop.
     catch zcx_zrpd_edev_valid into data(lx_fac).
       write: / 'Factory hatasi:', lx_fac->get_text( ) color col_negative.
