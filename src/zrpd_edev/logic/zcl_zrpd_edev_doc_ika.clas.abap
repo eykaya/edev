@@ -62,18 +62,26 @@ class zcl_zrpd_edev_doc_ika implementation.
   endmethod.
 
   method parse_fields.
-    data: ls_val      type zrpd_edev_s_dcval,
-          lv_tckn     type string,
-          lv_bc       type string,
-          lv_adi      type string,
-          lv_soyadi   type string,
-          lv_address  type string,
-          lv_neighbor type string,
-          lv_street   type string,
-          lv_district type string,
-          lv_city     type string,
-          lv_dats     type dats,
-          lv_count    type i.
+    data: ls_val        type zrpd_edev_s_dcval,
+          lv_tckn       type string,
+          lv_bc         type string,
+          lv_adi        type string,
+          lv_soyadi     type string,
+          lv_address    type string,
+          lv_neighbor   type string,
+          lv_street     type string,
+          lv_district   type string,
+          lv_city       type string,
+          lv_dats       type dats,
+          lv_count      type i,
+          lv_ano_off    type i,
+          lv_ano_rest   type string,
+          lv_an2_off    type i,
+          lv_an2_len    type i,
+          lv_street_name type string,
+          lv_bldg_no    type string,
+          lv_door_no    type string,
+          lv_no_off     type i.
 
     " --- TCKN ---
     clear ls_val.
@@ -138,15 +146,20 @@ class zcl_zrpd_edev_doc_ika implementation.
     ls_val-field_value    = extract_by_label(
       iv_text  = iv_text
       iv_label = 'Adres No' ).
-    " Fallback: 10 haneli sayi ara
+    " Fallback: 'Adres No' labelindan sonra gelen 10 haneli sayiyi ara (TCKN'yi atlayarak)
     if ls_val-field_value is initial.
-      find first occurrence of regex '[0-9]{10}'
-        in iv_text match offset data(lv_ano_off) match length data(lv_ano_len).
+      find first occurrence of 'Adres No' in iv_text
+        ignoring case match offset lv_ano_off.
       if sy-subrc = 0.
-        ls_val-field_value = substring(
-          val = iv_text
-          off = lv_ano_off
-          len = lv_ano_len ).
+        lv_ano_rest = iv_text+lv_ano_off.
+        find first occurrence of regex '[0-9]{10}'
+          in lv_ano_rest match offset lv_an2_off match length lv_an2_len.
+        if sy-subrc = 0.
+          ls_val-field_value = substring(
+            val = lv_ano_rest
+            off = lv_an2_off
+            len = lv_an2_len ).
+        endif.
       endif.
     endif.
     ls_val-confidence = cond #( when ls_val-field_value = '' then '0.00' else '100.00' ).
@@ -179,11 +192,6 @@ class zcl_zrpd_edev_doc_ika implementation.
     append ls_val to rt_vals.
 
     " Street (cadde/sokak adi)
-    data: lv_street_name type string,
-          lv_bldg_no     type string,
-          lv_door_no     type string,
-          lv_no_off      type i.
-
     lv_street_name = lv_street.
 
     " NO: xx IC KAPI NO: yy pattern'i ayristir
@@ -357,8 +365,13 @@ class zcl_zrpd_edev_doc_ika implementation.
       endif.
     endloop.
 
-    " Adres no prefix temizle: 10 haneli sayi ve/veya | isaretini sil
-    replace regex '^\d{10}\s*\|?\s*' in rv_address with ''.
+    " Label ve adres no prefix temizle
+    " OCR bazen "YERLESIM YERI YURTICI 1234567890 |" gibi label karistirir
+    replace all occurrences of regex 'YERLESIM\s+YERI' in rv_address with ''.
+    replace all occurrences of regex 'YURTICI' in rv_address with ''.
+    replace all occurrences of regex 'ADRESI' in rv_address with ''.
+    replace all occurrences of regex 'ADRES\s+TIPI' in rv_address with ''.
+    replace all occurrences of regex '\d{10}\s*\|?\s*' in rv_address with ''.
     condense rv_address.
   endmethod.
 
