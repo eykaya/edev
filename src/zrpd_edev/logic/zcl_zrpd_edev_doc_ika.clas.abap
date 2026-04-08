@@ -79,9 +79,14 @@ class zcl_zrpd_edev_doc_ika implementation.
           lv_an2_off    type i,
           lv_an2_len    type i,
           lv_street_name type string,
+          lv_cadde      type string,
+          lv_sokak      type string,
           lv_bldg_no    type string,
           lv_door_no    type string,
-          lv_no_off     type i.
+          lv_no_off     type i,
+          lv_cad_off    type i,
+          lv_sk_off     type i,
+          lv_after_cad  type string.
 
     " --- TCKN ---
     clear ls_val.
@@ -191,15 +196,14 @@ class zcl_zrpd_edev_doc_ika implementation.
     ls_val-confidence     = cond #( when lv_neighbor = '' then '0.00' else '80.00' ).
     append ls_val to rt_vals.
 
-    " Street (cadde/sokak adi)
+    " Sokak/Cadde/No ayristirma
     lv_street_name = lv_street.
 
-    " NO: xx IC KAPI NO: yy pattern'i ayristir
-    find first occurrence of regex 'NO\s*:\s*(\d+)\s+IC\s+KAPI\s+NO\s*:\s*(\d+)'
+    " NO: xx INS_AAT NO: yy veya IC KAPI NO: yy pattern'i ayristir
+    find first occurrence of regex 'NO\s*:\s*(\d+)\s+I[CNS_]+\s*(?:KAPI\s+)?NO\s*:\s*(\d+)'
       in to_upper( lv_street )
       submatches lv_bldg_no lv_door_no.
     if sy-subrc = 0.
-      " Sokak adi: NO: oncesi
       find first occurrence of regex '\s*NO\s*:' in to_upper( lv_street )
         match offset lv_no_off.
       if sy-subrc = 0 and lv_no_off is not initial.
@@ -221,14 +225,51 @@ class zcl_zrpd_edev_doc_ika implementation.
       endif.
     endif.
 
+    " Cadde ve Sokak ayir
+    " Ornek: "DORTYOL SK." veya "CUMHURIYET CAD. PAZAR SK."
+    find first occurrence of regex '(\S+\s+CAD[.\s])'
+      in to_upper( lv_street_name )
+      submatches lv_cadde
+      match offset lv_cad_off.
+    if sy-subrc = 0.
+      condense lv_cadde.
+      " Cadde'den sonraki kisim sokak olabilir
+      lv_after_cad = to_upper( lv_street_name ).
+      lv_sk_off = lv_cad_off + strlen( lv_cadde ).
+      if lv_sk_off < strlen( lv_after_cad ).
+        lv_sokak = lv_after_cad+lv_sk_off.
+        condense lv_sokak.
+      endif.
+    else.
+      " Cadde yok, tamamı sokak (SK. / SOK. / SOKAK / SOKAGI iceriyorsa)
+      find first occurrence of regex '(\S+\s+(?:SK[.\s]|SOK[.\s]|SOKAK|SOKAGI))'
+        in to_upper( lv_street_name )
+        submatches lv_sokak.
+      if sy-subrc = 0.
+        condense lv_sokak.
+      else.
+        " Pattern bulunamadı, tamamini sokak olarak al
+        lv_sokak = lv_street_name.
+      endif.
+    endif.
+
+    " Cadde
     clear ls_val.
-    ls_val-field_name     = 'street'.
+    ls_val-field_name     = 'cadde'.
     ls_val-extract_method = 'FORM'.
-    ls_val-field_value    = lv_street_name.
-    ls_val-confidence     = cond #( when lv_street_name = '' then '0.00' else '80.00' ).
+    ls_val-field_value    = lv_cadde.
+    ls_val-confidence     = cond #( when lv_cadde = '' then '0.00' else '80.00' ).
     append ls_val to rt_vals.
 
-    " Building no (dis kapi no)
+    " Sokak
+    clear ls_val.
+    ls_val-field_name     = 'sokak'.
+    ls_val-extract_method = 'FORM'.
+    ls_val-field_value    = lv_sokak.
+    ls_val-confidence     = cond #( when lv_sokak = '' then '0.00' else '80.00' ).
+    append ls_val to rt_vals.
+
+    " Building no (dis kapi / insaat no)
     clear ls_val.
     ls_val-field_name     = 'building_no'.
     ls_val-extract_method = 'FORM'.
