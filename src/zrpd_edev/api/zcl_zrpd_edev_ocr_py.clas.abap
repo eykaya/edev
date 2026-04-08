@@ -21,7 +21,7 @@ class zcl_zrpd_edev_ocr_py implementation.
   method zif_zrpd_edev_ext_svc~extract_text.
     data: lt_log    type standard table of btcxpm with empty key,
           ls_log    type btcxpm,
-          lv_param  type string,
+          lv_param  type sxpgcostab-parameters,
           lv_json   type string,
           lv_line   type string,
           ls_result type ty_ocr_result.

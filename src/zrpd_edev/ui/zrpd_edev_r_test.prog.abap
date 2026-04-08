@@ -52,64 +52,86 @@ start-of-selection.
   write: / 'Dosya boyutu:', lv_filesize, 'byte'.
   uline.
 
-  " PDF to text
-  data lo_parser type ref to zcl_zrpd_edev_doc_base.
-  create object lo_parser.
+  " 1. Once native text dene (SCMS)
+  data lo_base type ref to zcl_zrpd_edev_doc_base.
+  create object lo_base.
 
   data lv_text type string.
-  lv_text = lo_parser->pdf_to_text( lv_content ).
+  lv_text = lo_base->pdf_to_text( lv_content ).
 
-  if lv_text is initial.
-    write: / 'PDF metin cikartma basarisiz.' color col_negative.
-    return.
+  " Native text yeterli mi kontrol et
+  data lv_upper type string.
+  lv_upper = to_upper( lv_text ).
+  if lv_text is initial
+    or strlen( lv_text ) > 100000
+    or ( lv_upper ns 'KIMLIK' and lv_upper ns 'YERLESIM' and lv_upper ns 'ADRES' ).
+    " Native text yetersiz — Python OCR kullan
+    write: / 'Native text yetersiz, Python OCR baslatiliyor...' color col_total.
+    data lo_ocr type ref to zcl_zrpd_edev_ocr_py.
+    create object lo_ocr.
+    try.
+        lv_text = lo_ocr->zif_zrpd_edev_ext_svc~extract_text( lv_content ).
+        write: / 'OCR tamamlandi.' color col_positive.
+      catch zcx_zrpd_edev_api into data(lx_ocr).
+        write: / 'OCR hatasi:', lx_ocr->get_text( ) color col_negative.
+        return.
+    endtry.
+  else.
+    write: / 'Native text kullaniliyor.' color col_positive.
   endif.
 
   write: / 'Metin uzunlugu:', strlen( lv_text ), 'karakter'.
   uline.
 
-  " TCKN extraction
+  " 2. TCKN extraction
   write: / '=== TCKN ===' color col_heading.
   try.
       data lv_tckn type string.
-      lv_tckn = lo_parser->extract_tckn( lv_text ).
+      lv_tckn = lo_base->extract_tckn( lv_text ).
       write: / 'TCKN:', lv_tckn.
 
       data lv_valid type abap_bool.
-      lv_valid = lo_parser->validate_tckn( lv_tckn ).
+      lv_valid = lo_base->validate_tckn( lv_tckn ).
       if lv_valid = abap_true.
         write: / 'Checksum: GECERLI' color col_positive.
       else.
         write: / 'Checksum: HATALI' color col_negative.
       endif.
     catch zcx_zrpd_edev_extract into data(lx1).
-      write: / 'TCKN bulunamadi:', lx1->mv_msgv1 color col_negative.
+      write: / 'TCKN bulunamadi:', lx1->get_text( ) color col_negative.
   endtry.
   uline.
 
-  " Barcode extraction
+  " 3. Barcode extraction
   write: / '=== BARKOD ===' color col_heading.
   try.
       data lv_barcode type string.
-      lv_barcode = lo_parser->extract_barcode( lv_text ).
+      lv_barcode = lo_base->extract_barcode( lv_text ).
       write: / 'Barkod:', lv_barcode.
     catch zcx_zrpd_edev_extract into data(lx2).
-      write: / 'Barkod bulunamadi:', lx2->mv_msgv1 color col_negative.
+      write: / 'Barkod bulunamadi:', lx2->get_text( ) color col_negative.
   endtry.
   uline.
 
-  " Full parse test (with IKA parser)
+  " 4. Full parse (DOC_FAC -> config-driven parser)
   write: / '=== FULL PARSE ===' color col_heading.
-  data lo_ika type ref to zcl_zrpd_edev_doc_ika.
+  data lo_fac type ref to zcl_zrpd_edev_doc_fac.
+  data lo_parser type ref to zcl_zrpd_edev_doc_base.
   data lt_vals type zrpd_edev_tt_dcval.
   data ls_val type zrpd_edev_s_dcval.
 
-  create object lo_ika.
+  create object lo_fac.
   try.
-      lt_vals = lo_ika->parse_fields( lv_text ).
+      lo_parser = lo_fac->create_parser( 'IKAMETGAH' ).
+      write: / 'Parser:', lo_parser->get_doc_type( ) color col_positive.
+
+      lt_vals = lo_parser->parse_fields( lv_text ).
       loop at lt_vals into ls_val.
         write: / ls_val-field_name, ':', ls_val-field_value,
                  '(conf=', ls_val-confidence, ')'.
       endloop.
+    catch zcx_zrpd_edev_valid into data(lx_fac).
+      write: / 'Factory hatasi:', lx_fac->get_text( ) color col_negative.
     catch zcx_zrpd_edev_extract into data(lx3).
-      write: / 'Parse hatasi:', lx3->mv_msgv1 color col_negative.
+      write: / 'Parse hatasi:', lx3->get_text( ) color col_negative.
   endtry.
