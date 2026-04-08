@@ -199,8 +199,8 @@ class zcl_zrpd_edev_doc_ika implementation.
     " Sokak/Cadde/No ayristirma
     lv_street_name = lv_street.
 
-    " NO: xx INS_AAT NO: yy veya IC KAPI NO: yy pattern'i ayristir
-    find first occurrence of regex 'NO\s*:\s*(\d+)\s+I[CNS_]+\s*(?:KAPI\s+)?NO\s*:\s*(\d+)'
+    " NO: xx + IC KAPI NO / INS.AAT NO / INSAAT NO: yy pattern
+    find first occurrence of regex 'NO\s*:\s*(\d+)\s+.{1,15}NO\s*:\s*(\d+)'
       in to_upper( lv_street )
       submatches lv_bldg_no lv_door_no.
     if sy-subrc = 0.
@@ -385,8 +385,8 @@ class zcl_zrpd_edev_doc_ika implementation.
         lv_end_idx = lv_idx.
         exit.
       endif.
-      " Max 3 satir ileri bak
-      if lv_idx - lv_mah_idx > 2.
+      " Max 5 satir ileri bak (tablo formatli belgelerde adres daha uzak olabiliyor)
+      if lv_idx - lv_mah_idx > 4.
         exit.
       endif.
     endloop.
@@ -408,10 +408,11 @@ class zcl_zrpd_edev_doc_ika implementation.
 
     " Label ve adres no prefix temizle
     " OCR bazen "YERLESIM YERI YURTICI 1234567890 |" gibi label karistirir
-    replace all occurrences of regex 'YERLESIM\s+YERI' in rv_address with ''.
-    replace all occurrences of regex 'YURTICI' in rv_address with ''.
-    replace all occurrences of regex 'ADRESI' in rv_address with ''.
-    replace all occurrences of regex 'ADRES\s+TIPI' in rv_address with ''.
+    " Turkce ve ASCII varyantlari
+    replace all occurrences of regex 'YERLE.IM\s+YER.' in rv_address with ''.
+    replace all occurrences of regex 'YURT.C.' in rv_address with ''.
+    replace all occurrences of regex 'ADRES.' in rv_address with ''.
+    replace all occurrences of regex 'ADRES\s+T.P.' in rv_address with ''.
     replace all occurrences of regex '\d{10}\s*\|?\s*' in rv_address with ''.
     condense rv_address.
   endmethod.
