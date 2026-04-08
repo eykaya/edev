@@ -267,7 +267,7 @@
     "prefer_returning_to_exporting": true,
     "prefer_xsdbool": false,
     "preferred_compare_operator": {
-      "badOperators": ["EQ", ">", "<", "<>", "=<", ">=", "NE", "GE", "GT", "LT", "LE"]
+      "badOperators": ["EQ", ">", "<", "<>", "=<", ">="]
     },
     "reduce_string_templates": true,
     "release_idoc": false,
