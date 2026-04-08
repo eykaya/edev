@@ -118,22 +118,57 @@ class zcl_zrpd_edev_doc_ika implementation.
     ls_val-confidence  = cond #( when lv_bc = '' then '0.00' else '100.00' ).
     append ls_val to rt_vals.
 
-    " --- ADI / SOYADI -> FULL_NAME ---
+    " --- ADI / SOYADI ---
     clear ls_val.
     ls_val-field_name     = 'ad_soyad'.
     ls_val-extract_method = 'FORM'.
+    " Strateji 1: label sonrasi (standart format: "Adi GİZEM")
     lv_adi = extract_by_label( iv_text = iv_text iv_label = 'Adi' ).
     if lv_adi = ''.
       lv_adi = extract_by_label( iv_text = iv_text iv_label = 'ADI SOYADI' ).
     endif.
-    " OCR gurultusu temizle: bastaki !:; karakterleri
-    replace regex '^[!:;]+' in lv_adi with ''.
-    condense lv_adi.
-
     lv_soyadi = extract_by_label( iv_text = iv_text iv_label = 'Soyadi' ).
     if lv_soyadi = ''.
       lv_soyadi = extract_by_label( iv_text = iv_text iv_label = 'Soyad' ).
     endif.
+    " Strateji 2: tablo format (deger once, label sonra satir sirasi)
+    " OCR: TCKN / Ad / Soyad / (bos) / Kimlik No / Adi / Soyadi
+    if lv_adi is initial.
+      data: lt_nl type standard table of string,
+            lv_nl type string,
+            lv_nl_idx type i,
+            lv_nl_up type string,
+            lv_t type string.
+      split iv_text at cl_abap_char_utilities=>newline into table lt_nl.
+      loop at lt_nl into lv_nl.
+        lv_nl_idx = sy-tabix.
+        lv_nl_up = to_upper( lv_nl ).
+        condense lv_nl_up.
+        if lv_nl_up cs 'KIMLIK NO'.
+          " Kimlik No labelindan 3 satir once = Ad, 2 satir once = Soyad
+          data lv_ad_idx type i.
+          lv_ad_idx = lv_nl_idx - 3.
+          if lv_ad_idx > 0.
+            read table lt_nl index lv_ad_idx into lv_t.
+            condense lv_t.
+            if strlen( lv_t ) > 1 and lv_t na '0123456789'.
+              lv_adi = lv_t.
+            endif.
+          endif.
+          lv_ad_idx = lv_nl_idx - 2.
+          if lv_ad_idx > 0.
+            read table lt_nl index lv_ad_idx into lv_t.
+            condense lv_t.
+            if strlen( lv_t ) > 1 and lv_t na '0123456789'.
+              lv_soyadi = lv_t.
+            endif.
+          endif.
+          exit.
+        endif.
+      endloop.
+    endif.
+    replace regex '^[!:;]+' in lv_adi with ''.
+    condense lv_adi.
     replace regex '^[!:;]+' in lv_soyadi with ''.
     condense lv_soyadi.
     if lv_adi is not initial and lv_soyadi is not initial.
@@ -351,7 +386,8 @@ class zcl_zrpd_edev_doc_ika implementation.
           lv_line    type string,
           lv_mah_idx type i,
           lv_end_idx type i,
-          lv_idx     type i.
+          lv_idx     type i,
+          lv_pipe_pos type i.
 
     lv_upper = to_upper( iv_text ).
     split lv_upper at cl_abap_char_utilities=>newline into table lt_lines.
@@ -385,19 +421,27 @@ class zcl_zrpd_edev_doc_ika implementation.
         lv_end_idx = lv_idx.
         exit.
       endif.
-      " Max 5 satir ileri bak (tablo formatli belgelerde adres daha uzak olabiliyor)
       if lv_idx - lv_mah_idx > 4.
         exit.
       endif.
     endloop.
 
+    " / bulunamadiysa sonraki satira da bak (KAPI NO: x ILCE / IL formati)
+    if lv_end_idx = lv_mah_idx.
+      lv_idx = lv_mah_idx + 1.
+      if lv_idx <= lines( lt_lines ).
+        read table lt_lines index lv_idx into lv_line.
+        condense lv_line.
+        if lv_line cs '/'.
+          lv_end_idx = lv_idx.
+        endif.
+      endif.
+    endif.
+
     " MAH'tan / satirana kadar birlestir
     loop at lt_lines into lv_line from lv_mah_idx to lv_end_idx.
       condense lv_line.
-      if lv_line is not initial
-        and strlen( lv_line ) > 3
-        and lv_line ns 'ADRESI'
-        and lv_line ns 'ADRES TIPI'.
+      if lv_line is not initial and strlen( lv_line ) > 3.
         if rv_address is initial.
           rv_address = lv_line.
         else.
@@ -406,14 +450,18 @@ class zcl_zrpd_edev_doc_ika implementation.
       endif.
     endloop.
 
-    " Label ve adres no prefix temizle
-    " OCR bazen "YERLESIM YERI YURTICI 1234567890 |" gibi label karistirir
-    " Turkce ve ASCII varyantlari
+    " | (pipe) varsa sag tarafini al (sol taraf label + adres no)
+    find first occurrence of '|' in rv_address match offset lv_pipe_pos.
+    if sy-subrc = 0.
+      lv_pipe_pos = lv_pipe_pos + 1.
+      rv_address = rv_address+lv_pipe_pos.
+    endif.
+
+    " Label temizle (Turkce wildcard ile)
     replace all occurrences of regex 'YERLE.IM\s+YER.' in rv_address with ''.
     replace all occurrences of regex 'YURT.C.' in rv_address with ''.
-    replace all occurrences of regex 'ADRES.' in rv_address with ''.
     replace all occurrences of regex 'ADRES\s+T.P.' in rv_address with ''.
-    replace all occurrences of regex '\d{10}\s*\|?\s*' in rv_address with ''.
+    replace all occurrences of regex '\d{10}\s*' in rv_address with ''.
     condense rv_address.
   endmethod.
 
