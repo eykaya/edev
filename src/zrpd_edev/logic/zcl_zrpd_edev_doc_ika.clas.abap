@@ -124,8 +124,8 @@ class zcl_zrpd_edev_doc_ika implementation.
       catch zcx_zrpd_edev_extract.
     endtry.
     append_field(
-      importing
-        iv_name       = 'tc_kimlik_no'
+      exporting
+        iv_name       ='tc_kimlik_no'
         iv_value      = lv_tckn
         iv_confidence = cond #( when lv_tckn = '' then '0.00' else '100.00' )
       changing
@@ -137,8 +137,8 @@ class zcl_zrpd_edev_doc_ika implementation.
       catch zcx_zrpd_edev_extract.
     endtry.
     append_field(
-      importing
-        iv_name       = 'barkod'
+      exporting
+        iv_name       ='barkod'
         iv_value      = lv_bc
         iv_confidence = cond #( when lv_bc = '' then '0.00' else '100.00' )
       changing
@@ -159,8 +159,8 @@ class zcl_zrpd_edev_doc_ika implementation.
       ls_val-field_value = ''.
     endif.
     append_field(
-      importing
-        iv_name       = 'ad_soyad'
+      exporting
+        iv_name       ='ad_soyad'
         iv_value      = ls_val-field_value
         iv_confidence = cond #( when ls_val-field_value = '' then '0.00' else '90.00' )
       changing
@@ -176,8 +176,8 @@ class zcl_zrpd_edev_doc_ika implementation.
     " TAM ADRES
     lv_address = find_address_line( iv_text ).
     append_field(
-      importing
-        iv_name       = 'tam_adres'
+      exporting
+        iv_name       ='tam_adres'
         iv_value      = lv_address
         iv_confidence = cond #( when lv_address = '' then '0.00' else '80.00' )
       changing
@@ -194,8 +194,8 @@ class zcl_zrpd_edev_doc_ika implementation.
 
     " MAHALLE
     append_field(
-      importing
-        iv_name       = 'mahalle'
+      exporting
+        iv_name       ='mahalle'
         iv_value      = lv_neighbor
         iv_confidence = cond #( when lv_neighbor = '' then '0.00' else '80.00' )
       changing
@@ -210,15 +210,15 @@ class zcl_zrpd_edev_doc_ika implementation.
 
     " ILCE / IL
     append_field(
-      importing
-        iv_name       = 'ilce'
+      exporting
+        iv_name       ='ilce'
         iv_value      = lv_district
         iv_confidence = cond #( when lv_district = '' then '0.00' else '80.00' )
       changing
         ct_vals       = rt_vals ).
     append_field(
-      importing
-        iv_name       = 'il'
+      exporting
+        iv_name       ='il'
         iv_value      = lv_city
         iv_confidence = cond #( when lv_city = '' then '0.00' else '80.00' )
       changing
@@ -226,8 +226,8 @@ class zcl_zrpd_edev_doc_ika implementation.
 
     " POSTA KODU
     append_field(
-      importing
-        iv_name       = 'posta_kodu'
+      exporting
+        iv_name       ='posta_kodu'
         iv_value      = extract_by_label( iv_text = iv_text iv_label = 'Posta Kodu' )
         iv_confidence = '80.00'
       changing
@@ -235,8 +235,8 @@ class zcl_zrpd_edev_doc_ika implementation.
 
     " ULKE
     append_field(
-      importing
-        iv_name       = 'ulke'
+      exporting
+        iv_name       ='ulke'
         iv_value      = 'TR'
         iv_confidence = '100.00'
       changing
@@ -246,7 +246,7 @@ class zcl_zrpd_edev_doc_ika implementation.
     lv_dats = extract_date_from_text( iv_text ).
     if lv_dats = '00000000'.
       append_field(
-        importing
+        exporting
           iv_name       = 'belge_tarihi'
           iv_value      = ''
           iv_confidence = '0.00'
@@ -254,7 +254,7 @@ class zcl_zrpd_edev_doc_ika implementation.
           ct_vals       = rt_vals ).
     else.
       append_field(
-        importing
+        exporting
           iv_name       = 'belge_tarihi'
           iv_value      = lv_dats
           iv_confidence = '100.00'
@@ -342,7 +342,9 @@ class zcl_zrpd_edev_doc_ika implementation.
     lv_up = to_upper( iv_line ).
     if lv_up cs 'KIMLIK'
     or lv_up cs 'ADRES'
-    or lv_up cs 'YERLESIM'.
+    or lv_up cs 'YERLESIM'
+    or lv_up cs 'SOYAD'
+    or lv_up cs 'BILGI'.
       return.
     endif.
     rv_valid = abap_true.
@@ -446,9 +448,21 @@ class zcl_zrpd_edev_doc_ika implementation.
       endif.
     endif.
 
+    " Fallback 3: Yerlesim/Yurtici satirindaki 10 haneli sayi
+    if lv_val is initial.
+      split iv_text at cl_abap_char_utilities=>newline into table lt_nl.
+      loop at lt_nl into lv_nl.
+        lv_nl_up = to_upper( lv_nl ). condense lv_nl_up.
+        if lv_nl_up cs 'YURTICI' or lv_nl_up cs 'YERLESIM'.
+          find first occurrence of regex '(\d{10})' in lv_nl_up submatches lv_t.
+          if sy-subrc = 0. lv_val = lv_t. exit. endif.
+        endif.
+      endloop.
+    endif.
+
     append_field(
-      importing
-        iv_name       = 'adres_no'
+      exporting
+        iv_name       ='adres_no'
         iv_value      = lv_val
         iv_confidence = cond #( when lv_val = '' then '0.00' else '100.00' )
       changing
@@ -535,43 +549,43 @@ class zcl_zrpd_edev_doc_ika implementation.
     endif.
 
     append_field(
-      importing
-        iv_name       = 'cadde'
+      exporting
+        iv_name       ='cadde'
         iv_value      = lv_cadde
         iv_confidence = cond #( when lv_cadde = '' then '0.00' else '80.00' )
       changing
         ct_vals       = ct_vals ).
     append_field(
-      importing
-        iv_name       = 'sokak'
+      exporting
+        iv_name       ='sokak'
         iv_value      = lv_sokak
         iv_confidence = cond #( when lv_sokak = '' then '0.00' else '80.00' )
       changing
         ct_vals       = ct_vals ).
     append_field(
-      importing
-        iv_name       = 'site_apartman'
+      exporting
+        iv_name       ='site_apartman'
         iv_value      = lv_site_apt
         iv_confidence = cond #( when lv_site_apt = '' then '0.00' else '80.00' )
       changing
         ct_vals       = ct_vals ).
     append_field(
-      importing
-        iv_name       = 'blok'
+      exporting
+        iv_name       ='blok'
         iv_value      = lv_blok
         iv_confidence = cond #( when lv_blok = '' then '0.00' else '80.00' )
       changing
         ct_vals       = ct_vals ).
     append_field(
-      importing
-        iv_name       = 'bina_no'
+      exporting
+        iv_name       ='bina_no'
         iv_value      = lv_bldg_no
         iv_confidence = cond #( when lv_bldg_no = '' then '0.00' else '80.00' )
       changing
         ct_vals       = ct_vals ).
     append_field(
-      importing
-        iv_name       = 'ic_kapi_no'
+      exporting
+        iv_name       ='ic_kapi_no'
         iv_value      = lv_door_no
         iv_confidence = cond #( when lv_door_no = '' then '0.00' else '80.00' )
       changing
@@ -783,19 +797,11 @@ class zcl_zrpd_edev_doc_ika implementation.
       return.
     endif.
 
-    find first occurrence of regex 'BLOK\s'
-      in lv_up match offset lv_blok_pos match length lv_blok_len.
+    find first occurrence of regex '\s?([A-Z])?\s*BLOK'
+      in lv_up match offset lv_blok_pos submatches ev_blok.
     if sy-subrc = 0.
       lv_site_end = lv_blok_pos.
-      if lv_site_end gt 0.
-        lv_before_blok = lv_up(lv_site_end).
-        condense lv_before_blok.
-        find first occurrence of regex '\s([A-Z])\s*$'
-          in lv_before_blok submatches ev_blok.
-        if sy-subrc = 0.
-          condense ev_blok.
-        endif.
-      endif.
+      condense ev_blok.
     else.
       lv_site_end = strlen( lv_up ).
     endif.
