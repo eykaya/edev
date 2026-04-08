@@ -90,7 +90,7 @@ class zcl_zrpd_edev_doc_ika implementation.
 
     " --- TCKN ---
     clear ls_val.
-    ls_val-field_name     = 'tckn'.
+    ls_val-field_name     = 'tc_kimlik_no'.
     ls_val-extract_method = 'FORM'.
     lv_tckn = extract_by_label( iv_text = iv_text iv_label = 'Kimlik No' ).
     if lv_tckn = ''.
@@ -108,7 +108,7 @@ class zcl_zrpd_edev_doc_ika implementation.
 
     " --- BARCODE ---
     clear ls_val.
-    ls_val-field_name     = 'barcode'.
+    ls_val-field_name     = 'barkod'.
     ls_val-extract_method = 'FORM'.
     try.
         lv_bc = extract_barcode( iv_text ).
@@ -120,7 +120,7 @@ class zcl_zrpd_edev_doc_ika implementation.
 
     " --- ADI / SOYADI -> FULL_NAME ---
     clear ls_val.
-    ls_val-field_name     = 'full_name'.
+    ls_val-field_name     = 'ad_soyad'.
     ls_val-extract_method = 'FORM'.
     lv_adi = extract_by_label( iv_text = iv_text iv_label = 'Adi' ).
     if lv_adi = ''.
@@ -146,7 +146,7 @@ class zcl_zrpd_edev_doc_ika implementation.
 
     " --- ADDRESS NO ---
     clear ls_val.
-    ls_val-field_name     = 'address_no'.
+    ls_val-field_name     = 'adres_no'.
     ls_val-extract_method = 'FORM'.
     ls_val-field_value    = extract_by_label(
       iv_text  = iv_text
@@ -175,7 +175,7 @@ class zcl_zrpd_edev_doc_ika implementation.
 
     " Full address (tam adres satiri)
     clear ls_val.
-    ls_val-field_name     = 'full_address'.
+    ls_val-field_name     = 'tam_adres'.
     ls_val-extract_method = 'FORM'.
     ls_val-field_value    = lv_address.
     ls_val-confidence     = cond #( when lv_address = '' then '0.00' else '80.00' ).
@@ -190,7 +190,7 @@ class zcl_zrpd_edev_doc_ika implementation.
 
     " Neighborhood
     clear ls_val.
-    ls_val-field_name     = 'neighborhood'.
+    ls_val-field_name     = 'mahalle'.
     ls_val-extract_method = 'FORM'.
     ls_val-field_value    = lv_neighbor.
     ls_val-confidence     = cond #( when lv_neighbor = '' then '0.00' else '80.00' ).
@@ -271,7 +271,7 @@ class zcl_zrpd_edev_doc_ika implementation.
 
     " Building no (dis kapi / insaat no)
     clear ls_val.
-    ls_val-field_name     = 'building_no'.
+    ls_val-field_name     = 'bina_no'.
     ls_val-extract_method = 'FORM'.
     ls_val-field_value    = lv_bldg_no.
     ls_val-confidence     = cond #( when lv_bldg_no = '' then '0.00' else '80.00' ).
@@ -279,7 +279,7 @@ class zcl_zrpd_edev_doc_ika implementation.
 
     " Door no (ic kapi no)
     clear ls_val.
-    ls_val-field_name     = 'door_no'.
+    ls_val-field_name     = 'ic_kapi_no'.
     ls_val-extract_method = 'FORM'.
     ls_val-field_value    = lv_door_no.
     ls_val-confidence     = cond #( when lv_door_no = '' then '0.00' else '80.00' ).
@@ -287,7 +287,7 @@ class zcl_zrpd_edev_doc_ika implementation.
 
     " District
     clear ls_val.
-    ls_val-field_name     = 'district'.
+    ls_val-field_name     = 'ilce'.
     ls_val-extract_method = 'FORM'.
     ls_val-field_value    = lv_district.
     ls_val-confidence     = cond #( when lv_district = '' then '0.00' else '80.00' ).
@@ -295,7 +295,7 @@ class zcl_zrpd_edev_doc_ika implementation.
 
     " City
     clear ls_val.
-    ls_val-field_name     = 'city'.
+    ls_val-field_name     = 'il'.
     ls_val-extract_method = 'FORM'.
     ls_val-field_value    = lv_city.
     ls_val-confidence     = cond #( when lv_city = '' then '0.00' else '80.00' ).
@@ -303,7 +303,7 @@ class zcl_zrpd_edev_doc_ika implementation.
 
     " Postal code
     clear ls_val.
-    ls_val-field_name     = 'postal_code'.
+    ls_val-field_name     = 'posta_kodu'.
     ls_val-extract_method = 'FORM'.
     ls_val-field_value    = extract_by_label( iv_text = iv_text iv_label = 'Posta Kodu' ).
     ls_val-confidence     = cond #( when ls_val-field_value = '' then '0.00' else '80.00' ).
@@ -311,7 +311,7 @@ class zcl_zrpd_edev_doc_ika implementation.
 
     " Country
     clear ls_val.
-    ls_val-field_name     = 'country'.
+    ls_val-field_name     = 'ulke'.
     ls_val-extract_method = 'FORM'.
     ls_val-field_value    = 'TR'.
     ls_val-confidence     = '100.00'.
@@ -319,7 +319,7 @@ class zcl_zrpd_edev_doc_ika implementation.
 
     " Issue date
     clear ls_val.
-    ls_val-field_name     = 'issue_date'.
+    ls_val-field_name     = 'belge_tarihi'.
     ls_val-extract_method = 'FORM'.
     lv_dats = extract_date_from_text( iv_text ).
     if lv_dats = '00000000'.
