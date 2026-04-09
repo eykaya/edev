@@ -22,6 +22,8 @@ npm run lint                   # abaplint calistir
 
 SAP ABAP gelistirme icin MCP sunucusu olarak [Dassian ADT](https://github.com/DassianInc/dassian-adt) kullanilir.
 
+> Adim adim kurulum icin: **[docs/araclar/kurulum-rehberi.md](docs/araclar/kurulum-rehberi.md)**
+
 ```bash
 cd tools/dassian-adt
 git clone https://github.com/DassianInc/dassian-adt .
@@ -29,26 +31,27 @@ npm install
 npm run build
 ```
 
-`~/.claude/settings.json` dosyasina asagidaki MCP konfigurasyonunu ekle:
+`~/.claude.json` dosyasindaki `mcpServers` bolumune ekle:
 
 ```json
 {
   "mcpServers": {
-    "dassian-adt": {
+    "sap-adt": {
       "command": "node",
       "args": ["<proje-dizini>/tools/dassian-adt/dist/index.js"],
       "env": {
         "SAP_URL": "http://<sap-host>:8000/",
         "SAP_USER": "<kullanici>",
         "SAP_PASSWORD": "<sifre>",
-        "SAP_CLIENT": "100"
+        "SAP_CLIENT": "100",
+        "SAP_LANGUAGE": "TR"
       }
     }
   }
 }
 ```
 
-> **Not:** `tools/dassian-adt/` dizini `.gitignore`'da tanimlidir — git'e commit edilmez.
+> **Not:** `~/.claude/settings.json` degil, `~/.claude.json` okunur. `tools/dassian-adt/` git'e commit edilmez.
 
 ## Dizin Yapisi
 
