@@ -18,6 +18,38 @@ cp .env.example .env          # SAP bilgilerini doldur
 npm run lint                   # abaplint calistir
 ```
 
+## MCP Kurulumu — Dassian ADT
+
+SAP ABAP gelistirme icin MCP sunucusu olarak [Dassian ADT](https://github.com/DassianInc/dassian-adt) kullanilir.
+
+```bash
+cd tools/dassian-adt
+git clone https://github.com/DassianInc/dassian-adt .
+npm install
+npm run build
+```
+
+`~/.claude/settings.json` dosyasina asagidaki MCP konfigurasyonunu ekle:
+
+```json
+{
+  "mcpServers": {
+    "dassian-adt": {
+      "command": "node",
+      "args": ["<proje-dizini>/tools/dassian-adt/dist/index.js"],
+      "env": {
+        "SAP_URL": "http://<sap-host>:8000/",
+        "SAP_USER": "<kullanici>",
+        "SAP_PASSWORD": "<sifre>",
+        "SAP_CLIENT": "100"
+      }
+    }
+  }
+}
+```
+
+> **Not:** `tools/dassian-adt/` dizini `.gitignore`'da tanimlidir — git'e commit edilmez.
+
 ## Dizin Yapisi
 
 ```
