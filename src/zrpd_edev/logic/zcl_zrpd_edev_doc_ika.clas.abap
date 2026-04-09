@@ -491,9 +491,9 @@ class zcl_zrpd_edev_doc_ika implementation.
     lv_street_name = iv_street.
     lv_upper       = to_upper( iv_street ).
 
-    " Bina + ic kapi no cift pattern (alfanumerik bina_no destekli)
+    " Bina + ic kapi no cift pattern (13/1, 11A gibi formatlar)
     find first occurrence of
-      regex 'NO\s*:\s*(\d+[A-Za-z]?)\s+.{0,20}NO\s*:\s*(\d+)'
+      regex 'NO\s*:\s*(\d+(?:/\d+)?[A-Za-z]?)\s+.{0,20}NO\s*:\s*(\d+)'
       in lv_upper submatches lv_bldg_no lv_door_no.
     if sy-subrc = 0.
       find first occurrence of regex '\s*NO\s*:' in lv_upper match offset lv_no_off.
@@ -503,7 +503,7 @@ class zcl_zrpd_edev_doc_ika implementation.
       endif.
     else.
       " Tek bina no
-      find first occurrence of regex 'NO\s*:\s*(\d+[A-Za-z]?)'
+      find first occurrence of regex 'NO\s*:\s*(\d+(?:/\d+)?[A-Za-z]?)'
         in lv_upper submatches lv_bldg_no.
       if sy-subrc = 0.
         find first occurrence of regex '\s*NO\s*:' in lv_upper match offset lv_no_off.
@@ -524,6 +524,15 @@ class zcl_zrpd_edev_doc_ika implementation.
         ev_street_clean  = lv_street_base ).
     if lv_street_base is not initial.
       lv_street_name = lv_street_base.
+    endif.
+
+    " Fallback blok: site keyword olmasa bile BLOK pattern'ini ara
+    if lv_blok is initial.
+      find first occurrence of regex '(\w)\s*BLOK'
+        in to_upper( lv_street_name ) submatches lv_blok.
+      if sy-subrc = 0.
+        condense lv_blok.
+      endif.
     endif.
 
     " Cadde ayristirma
@@ -550,6 +559,12 @@ class zcl_zrpd_edev_doc_ika implementation.
         lv_sokak = lv_street_name.
       endif.
     endif.
+
+    " Suffix strip - alan adi zaten tipi belirtiyor
+    replace regex '\s*CAD\.?\s*$' in lv_cadde with ''.
+    condense lv_cadde.
+    replace regex '\s*(?:SK\.?|SOK\.?|SOKAK|SOKAGI)\s*$' in lv_sokak with ''.
+    condense lv_sokak.
 
     append_field(
       exporting
@@ -605,9 +620,16 @@ class zcl_zrpd_edev_doc_ika implementation.
           lv_idx       type i,
           lv_pipe_pos  type i,
           lv_total     type i,
-          lv_next_line type string.
+          lv_next_line type string,
+          lv_nbsp      type c length 1,
+          lv_repl      type string.
 
     lv_upper = to_upper( iv_text ).
+    " OCR NBSP fix - tum islemlerden once
+    lv_nbsp = cl_abap_conv_in_ce=>uccp( '00A0' ).
+    lv_repl = | |.
+    replace all occurrences of lv_nbsp in lv_upper with lv_repl.
+    replace all occurrences of cl_abap_char_utilities=>horizontal_tab in lv_upper with lv_repl.
     split lv_upper at cl_abap_char_utilities=>newline into table lt_lines.
     lv_total = lines( lt_lines ).
 
@@ -634,7 +656,7 @@ class zcl_zrpd_edev_doc_ika implementation.
     loop at lt_lines into lv_line from lv_mah_idx.
       lv_idx = sy-tabix.
       condense lv_line.
-      if lv_line cs '/'.
+      if lv_line cs ' / '.
         lv_end_idx = lv_idx.
         exit.
       endif.
@@ -649,7 +671,7 @@ class zcl_zrpd_edev_doc_ika implementation.
         read table lt_lines index lv_idx into lv_line.
         if sy-subrc = 0.
           condense lv_line.
-          if lv_line cs '/'.
+          if lv_line cs ' / '.
             lv_end_idx = lv_idx.
           endif.
         endif.
@@ -702,7 +724,8 @@ class zcl_zrpd_edev_doc_ika implementation.
           lv_last_idx     type i,
           lv_street_start type i,
           lv_street_part  type string,
-          lv_dist_pos     type i.
+          lv_dist_pos     type i,
+          lv_nbsp         type c length 1.
 
     clear: ev_neighborhood, ev_street, ev_district, ev_city.
     if iv_address is initial.
@@ -710,16 +733,20 @@ class zcl_zrpd_edev_doc_ika implementation.
     endif.
 
     lv_addr = to_upper( iv_address ).
+    " NBSP fix
+    lv_nbsp = cl_abap_conv_in_ce=>uccp( '00A0' ).
+    replace all occurrences of lv_nbsp in lv_addr with | |.
     condense lv_addr.
 
-    find first occurrence of '/' in lv_addr match offset lv_pos.
+    " Ilce/il ayiraci: bosluk-slash-bosluk (13/1 gibi bina_no'yu atla)
+    find first occurrence of regex '\s/\s' in lv_addr match offset lv_pos.
     if sy-subrc = 0.
       if lv_pos = 0.
         lv_before_slash = ''.
       else.
         lv_before_slash = lv_addr(lv_pos).
       endif.
-      lv_pos         = lv_pos + 1.
+      lv_pos         = lv_pos + 3.
       lv_after_slash = lv_addr+lv_pos.
       condense lv_after_slash.
       ev_city = lv_after_slash.
