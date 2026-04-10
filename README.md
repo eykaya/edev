@@ -20,8 +20,7 @@ npm run lint                   # abaplint calistir
 
 ## MCP Kurulumu
 
-SAP ABAP gelistirme icin MCP sunucusu olarak [abap-mcp-unified](https://github.com/aaeren/abap-mcp-unified) kullanilir.
-`tools/abap-mcp-unified/` git submodule olarak dahil edilmistir.
+SAP ABAP gelistirme icin MCP sunucusu `tools/abap-mcp-unified/` altinda submodule olarak dahil edilmistir.
 
 ```bash
 git clone <repo-url>
