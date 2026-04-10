@@ -1,0 +1,3 @@
+[submodule "tools/abap-mcp-unified"]
+	path = tools/abap-mcp-unified
+	url = https://github.com/aaeren/abap-mcp-unified.git
