@@ -18,40 +18,24 @@ cp .env.example .env          # SAP bilgilerini doldur
 npm run lint                   # abaplint calistir
 ```
 
-## MCP Kurulumu — Dassian ADT
+## MCP Kurulumu
 
-SAP ABAP gelistirme icin MCP sunucusu olarak [Dassian ADT](https://github.com/DassianInc/dassian-adt) kullanilir.
-
-> Adim adim kurulum icin: **[docs/araclar/kurulum-rehberi.md](docs/araclar/kurulum-rehberi.md)**
+SAP ABAP gelistirme icin MCP sunucusu olarak [abap-mcp-unified](https://github.com/aaeren/abap-mcp-unified) kullanilir.
+`tools/abap-mcp-unified/` git submodule olarak dahil edilmistir.
 
 ```bash
-cd tools/dassian-adt
-git clone https://github.com/DassianInc/dassian-adt .
-npm install
-npm run build
+git clone <repo-url>
+cd <repo>
+cp .env.example .env          # SAP bilgilerini doldur
+bash tools/setup-mcp.sh       # submodule build + settings.json otomatik guncellenir
 ```
 
-`~/.claude.json` dosyasindaki `mcpServers` bolumune ekle:
+Script su islemleri yapar:
+1. `git submodule update --init` — submodule'u indirir
+2. `npm install && npm run build` — MCP server'i derler
+3. `~/.claude/settings.json` — `mcpServers` blogunu otomatik ekler (.env'den okur)
 
-```json
-{
-  "mcpServers": {
-    "sap-adt": {
-      "command": "node",
-      "args": ["<proje-dizini>/tools/dassian-adt/dist/index.js"],
-      "env": {
-        "SAP_URL": "http://<sap-host>:8000/",
-        "SAP_USER": "<kullanici>",
-        "SAP_PASSWORD": "<sifre>",
-        "SAP_CLIENT": "100",
-        "SAP_LANGUAGE": "TR"
-      }
-    }
-  }
-}
-```
-
-> **Not:** `~/.claude/settings.json` degil, `~/.claude.json` okunur. `tools/dassian-adt/` git'e commit edilmez.
+Sonra Claude Code'u yeniden baslatmak yeterli.
 
 ## Dizin Yapisi
 
