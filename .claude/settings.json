@@ -33,36 +33,14 @@
       "Bash(/Users/emreyalcinkaya/.rapidhcm/planner-venv/bin/python3 /Users/emreyalcinkaya/Projects/EDEV/abap-template/tools/planner_helper.py *)",
       "Bash(/Users/emreyalcinkaya/.rapidhcm/planner-venv/bin/python3 -c \"import msal; import mcp; print\\('OK'\\)\")",
       "Bash(/Users/emreyalcinkaya/.rapidhcm/planner-venv/bin/python3 -c ':*)",
-      "Bash(/Users/emreyalcinkaya/.rapidhcm/planner-venv/bin/python3)"
+      "Bash(/Users/emreyalcinkaya/.rapidhcm/planner-venv/bin/python3)",
+      "Bash(npm run:*)"
     ]
   },
   "mcpServers": {
-    "planner": {
-      "command": "/Users/emreyalcinkaya/.rapidhcm/planner-venv/bin/python3",
-      "args": [
-        "/Users/emreyalcinkaya/Projects/EDEV/abap-template/tools/planner_mcp.py"
-      ],
-      "env": {}
-    },
-    "sap-fiori-tools": {
-      "command": "npx",
-      "args": [
-        "@sap-ux/fiori-mcp-server",
-        "--stdio"
-      ]
-    },
-    "sap-ui5": {
-      "command": "npx",
-      "args": [
-        "@ui5/mcp-server",
-        "--stdio"
-      ]
-    },
     "sap-adt": {
       "command": "node",
-      "args": [
-        "tools/dassian-adt/dist/index.js"
-      ],
+      "args": ["tools/abap-mcp-unified/dist/index.js"],
       "env": {
         "SAP_URL": "{SAP_URL}",
         "SAP_CLIENT": "{SAP_CLIENT}",
