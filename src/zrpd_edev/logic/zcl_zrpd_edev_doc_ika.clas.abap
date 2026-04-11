@@ -277,7 +277,6 @@ class zcl_zrpd_edev_doc_ika implementation.
     endif.
   endmethod.
 
-  " Strateji 1: label bazli. Strateji 2: tablo formatinda geriye tara.
   method parse_ad_soyad.
     data: lv_adi    type string,
           lv_soyadi type string.
@@ -329,7 +328,6 @@ class zcl_zrpd_edev_doc_ika implementation.
     ev_soyad = lv_soyadi.
   endmethod.
 
-  " Satirin ad/soyad icin gecerli bir isim satiri olup olmadigini kontrol eder
   method is_valid_name_line.
     data lv_up type string.
     rv_valid = abap_false.
@@ -353,7 +351,6 @@ class zcl_zrpd_edev_doc_ika implementation.
     rv_valid = abap_true.
   endmethod.
 
-  " 'Kimlik No' satirindan geriye giderek ilk 2 gecerli isim satirini bulur
   method get_name_before_kimlik.
     data: lt_nl          type standard table of string with empty key,
           lv_nl          type string,
@@ -401,7 +398,6 @@ class zcl_zrpd_edev_doc_ika implementation.
     endloop.
   endmethod.
 
-  " Adres no (10 haneli): label, pipe, bolge arama sirasiyla
   method parse_adres_no.
     data: lv_val     type string,
           lt_nl      type standard table of string with empty key,
@@ -472,7 +468,6 @@ class zcl_zrpd_edev_doc_ika implementation.
         ct_vals       = ct_vals ).
   endmethod.
 
-  " Cadde/sokak/site/blok/bina_no/ic_kapi_no alanlari
   method parse_street_fields.
     data: lv_street_name type string,
           lv_cadde       type string,
@@ -610,7 +605,6 @@ class zcl_zrpd_edev_doc_ika implementation.
         ct_vals       = ct_vals ).
   endmethod.
 
-  " MAH iceren satirdan '/' iceren satirda bitecek sekilde tam_adres olusturur
   method find_address_line.
     data: lv_upper     type string,
           lt_lines     type standard table of string with empty key,
@@ -782,12 +776,15 @@ class zcl_zrpd_edev_doc_ika implementation.
       lv_street_part = lv_before_slash+lv_street_start.
       condense lv_street_part.
       if ev_district is not initial.
-        find first occurrence of ev_district in lv_street_part match offset lv_dist_pos.
-        if sy-subrc = 0 and lv_dist_pos = 0.
-          ev_street = ''.
-        elseif sy-subrc = 0.
+        " Ilce kelimesi street icinde de gecebilir (orn: "KARTAL SITESI ... / KARTAL").
+        " Condense sonrasi ev_district her zaman lv_street_part sonunda, dolayisi ile
+        " string sonundan uzunluk kadar geri giderek kes.
+        lv_dist_pos = strlen( lv_street_part ) - strlen( ev_district ).
+        if lv_dist_pos gt 0 and lv_street_part+lv_dist_pos = ev_district.
           ev_street = lv_street_part(lv_dist_pos).
           condense ev_street.
+        elseif lv_dist_pos = 0.
+          ev_street = ''.
         else.
           ev_street = lv_street_part.
         endif.
@@ -818,8 +815,11 @@ class zcl_zrpd_edev_doc_ika implementation.
 
     lv_up = to_upper( iv_street ).
 
+    " SITESI/APARTMANI literal I (U+0049) Turk locale'inde to_upper sonrasi
+    " I (U+0130) olabilir. find_address_line'daki YERLE.IM/YURT.C. pattern'i
+    " gibi `.` wildcard ile Turkce karakter varyantlarini tolere et.
     find first occurrence of
-      regex '(RESIDENCE|SITESIN?[I]?|APARTMANI|APT\.?)'
+      regex '(RESIDENCE|S.TES.|APARTMAN.|APT\.?)'
       in lv_up match offset lv_site_pos match length lv_site_len.
     if sy-subrc ne 0.
       return.
@@ -1004,3 +1004,4 @@ class zcl_zrpd_edev_doc_ika implementation.
   endmethod.
 
 endclass.
+

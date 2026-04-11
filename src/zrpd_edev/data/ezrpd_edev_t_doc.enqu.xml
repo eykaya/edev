@@ -1,13 +1,13 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <abapGit version="v1.0.0" serializer="LCL_OBJECT_ENQU" serializer_version="v1.0.0">
  <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
   <asx:values>
    <DD25V>
     <VIEWNAME>EZRPD_EDEV_T_DOC</VIEWNAME>
     <DDLANGUAGE>E</DDLANGUAGE>
+    <AGGTYPE>E</AGGTYPE>
     <ROOTTAB>ZRPD_EDEV_T_DOC</ROOTTAB>
     <DDTEXT>Lock Object for EDEV Documents</DDTEXT>
-    <LOCKMODE>E</LOCKMODE>
    </DD25V>
    <DD26E_TABLE>
     <DD26E>
@@ -26,6 +26,7 @@
      <TABNAME>ZRPD_EDEV_T_DOC</TABNAME>
      <FIELDNAME>MANDT</FIELDNAME>
      <KEYFLAG>X</KEYFLAG>
+     <ENQMODE>E</ENQMODE>
     </DD27P>
     <DD27P>
      <VIEWNAME>EZRPD_EDEV_T_DOC</VIEWNAME>
@@ -34,6 +35,7 @@
      <TABNAME>ZRPD_EDEV_T_DOC</TABNAME>
      <FIELDNAME>DOC_GUID</FIELDNAME>
      <KEYFLAG>X</KEYFLAG>
+     <ENQMODE>E</ENQMODE>
     </DD27P>
    </DD27P_TABLE>
   </asx:values>

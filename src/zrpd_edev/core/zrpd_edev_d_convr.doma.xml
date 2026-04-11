@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <abapGit version="v1.0.0" serializer="LCL_OBJECT_DOMA" serializer_version="v1.0.0">
  <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
   <asx:values>
@@ -21,7 +21,7 @@
     <DD07V>
      <VALPOS>0002</VALPOS>
      <DDLANGUAGE>E</DDLANGUAGE>
-     <DOMVALUE_L>DATE_CONVERT</DOMVALUE_L>
+     <DOMVALUE_L>DATE_CONVE</DOMVALUE_L>
      <DDTEXT>Date Conv</DDTEXT>
     </DD07V>
     <DD07V>
@@ -39,7 +39,7 @@
     <DD07V>
      <VALPOS>0005</VALPOS>
      <DDLANGUAGE>E</DDLANGUAGE>
-     <DOMVALUE_L>LOOKUP_CNTRY</DOMVALUE_L>
+     <DOMVALUE_L>LOOKUP_CNT</DOMVALUE_L>
      <DDTEXT>Country Lkp</DDTEXT>
     </DD07V>
     <DD07V>

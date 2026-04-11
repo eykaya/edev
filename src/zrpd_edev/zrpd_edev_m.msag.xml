@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <abapGit version="v1.0.0" serializer="LCL_OBJECT_MSAG" serializer_version="v1.0.0">
  <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
   <asx:values>
@@ -127,6 +127,12 @@
      <ARBGB>ZRPD_EDEV_M</ARBGB>
      <MSGNR>020</MSGNR>
      <TEXT>IT0006 record could not be created: &amp;1</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZRPD_EDEV_M</ARBGB>
+     <MSGNR>021</MSGNR>
+     <TEXT>No e-Devlet documents found for employee &amp;1</TEXT>
     </T100>
    </T100>
   </asx:values>
