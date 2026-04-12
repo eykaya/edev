@@ -1,7 +1,14 @@
 class zcl_zrpd_edev_ocr_py definition public final create public.
 
   public section.
-    interfaces zif_zrpd_edev_ext_svc.
+
+    methods extract_text
+      importing
+        iv_content     type xstring
+      returning
+        value(rv_text) type string
+      raising
+        zcx_zrpd_edev.
 
   private section.
     types: begin of ty_ocr_result,
@@ -18,7 +25,7 @@ endclass.
 
 class zcl_zrpd_edev_ocr_py implementation.
 
-  method zif_zrpd_edev_ext_svc~extract_text.
+  method extract_text.
     data: lt_log    type standard table of btcxpm with empty key,
           ls_log    type btcxpm,
           lv_param  type sxpgcostab-parameters,
@@ -31,7 +38,7 @@ class zcl_zrpd_edev_ocr_py implementation.
     " 1. Write PDF xstring directly to disk
     open dataset co_pdf for output in binary mode.
     if sy-subrc is not initial.
-      raise exception type zcx_zrpd_edev_api
+      raise exception type zcx_zrpd_edev
         exporting mv_msgv1 = 'Cannot write temp PDF'.
     endif.
     transfer iv_content to co_pdf.
@@ -52,7 +59,7 @@ class zcl_zrpd_edev_ocr_py implementation.
         others                = 14.
 
     if sy-subrc is not initial.
-      raise exception type zcx_zrpd_edev_api
+      raise exception type zcx_zrpd_edev
         exporting mv_msgv1 = 'OCR script failed'.
     endif.
 
@@ -64,14 +71,14 @@ class zcl_zrpd_edev_ocr_py implementation.
     endloop.
 
     if lv_found = abap_false.
-      raise exception type zcx_zrpd_edev_api
+      raise exception type zcx_zrpd_edev
         exporting mv_msgv1 = 'OCR not completed'.
     endif.
 
     " 3. Read JSON result (multi-line)
     open dataset co_json for input in text mode encoding utf-8.
     if sy-subrc is not initial.
-      raise exception type zcx_zrpd_edev_api
+      raise exception type zcx_zrpd_edev
         exporting mv_msgv1 = 'OCR result not found'.
     endif.
     do.

@@ -12,7 +12,7 @@ class zcl_zrpd_edev_doc_base definition public create public.
       returning
         value(rt_vals) type zrpd_edev_tt_dcval
       raising
-        zcx_zrpd_edev_extract.
+        zcx_zrpd_edev.
 
     methods validate_content
       importing
@@ -32,7 +32,7 @@ class zcl_zrpd_edev_doc_base definition public create public.
       returning
         value(rv_tckn) type string
       raising
-        zcx_zrpd_edev_extract.
+        zcx_zrpd_edev.
 
     methods extract_barcode
       importing
@@ -40,7 +40,7 @@ class zcl_zrpd_edev_doc_base definition public create public.
       returning
         value(rv_barcode) type string
       raising
-        zcx_zrpd_edev_extract.
+        zcx_zrpd_edev.
 
     methods validate_tckn
       importing
@@ -54,7 +54,7 @@ class zcl_zrpd_edev_doc_base definition public create public.
       returning
         value(rv_dats) type dats
       raising
-        zcx_zrpd_edev_extract.
+        zcx_zrpd_edev.
 
   protected section.
 
@@ -74,7 +74,7 @@ class zcl_zrpd_edev_doc_base implementation.
   endmethod.
 
   method parse_fields.
-    raise exception type zcx_zrpd_edev_extract
+    raise exception type zcx_zrpd_edev
       exporting
         mv_msgv1 = 'parse_fields not implemented'.
   endmethod.
@@ -84,8 +84,6 @@ class zcl_zrpd_edev_doc_base implementation.
   endmethod.
 
   method pdf_to_text.
-    " SCMS-based: preserves ASCII digits, alphanumeric, hyphens.
-    " TCKN and barcode patterns survive even in garbled text.
     data: lt_bin type standard table of x255,
           lv_len type i.
 
@@ -114,19 +112,16 @@ class zcl_zrpd_edev_doc_base implementation.
   endmethod.
 
   method extract_tckn.
-    " Strategy 1: context-based (within 100 chars after 'Kimlik No')
-    " Strategy 2: first 11-digit number starting with non-zero
     data: lv_near   type string,
           lv_offset type i,
           lv_length type i,
           lv_remain type i.
 
     if iv_text is initial.
-      raise exception type zcx_zrpd_edev_extract
+      raise exception type zcx_zrpd_edev
         exporting mv_msgv1 = 'Empty text'.
     endif.
 
-    " Strategy 1
     find first occurrence of 'Kimlik No' in iv_text
       ignoring case match offset lv_offset.
     if sy-subrc = 0.
@@ -143,24 +138,22 @@ class zcl_zrpd_edev_doc_base implementation.
       endif.
     endif.
 
-    " Strategy 2
     find first occurrence of regex '[1-9][0-9]{10}'
       in iv_text match offset lv_offset match length lv_length.
     if sy-subrc = 0.
       rv_tckn = substring( val = iv_text off = lv_offset len = lv_length ).
     else.
-      raise exception type zcx_zrpd_edev_extract
+      raise exception type zcx_zrpd_edev
         exporting mv_msgv1 = 'TCKN not found'.
     endif.
   endmethod.
 
   method extract_barcode.
-    " NVI barcode: XXXX-XXXX-XXXX-XXXX
     data: lv_offset type i,
           lv_length type i.
 
     if iv_text is initial.
-      raise exception type zcx_zrpd_edev_extract
+      raise exception type zcx_zrpd_edev
         exporting mv_msgv1 = 'Empty text'.
     endif.
 
@@ -169,7 +162,7 @@ class zcl_zrpd_edev_doc_base implementation.
     if sy-subrc = 0.
       rv_barcode = substring( val = iv_text off = lv_offset len = lv_length ).
     else.
-      raise exception type zcx_zrpd_edev_extract
+      raise exception type zcx_zrpd_edev
         exporting mv_msgv1 = 'Barcode not found'.
     endif.
   endmethod.
@@ -241,7 +234,7 @@ class zcl_zrpd_edev_doc_base implementation.
       condense: lv_day, lv_mon, lv_yr.
       concatenate lv_yr lv_mon lv_day into rv_dats.
     else.
-      raise exception type zcx_zrpd_edev_extract
+      raise exception type zcx_zrpd_edev
         exporting mv_msgv1 = 'Date parse failed'.
     endif.
   endmethod.

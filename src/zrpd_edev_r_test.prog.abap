@@ -131,9 +131,9 @@ start-of-selection.
     data lo_ocr type ref to zcl_zrpd_edev_ocr_py.
     create object lo_ocr.
     try.
-        lv_text = lo_ocr->zif_zrpd_edev_ext_svc~extract_text( lv_content ).
+        lv_text = lo_ocr->extract_text( lv_content ).
         write: / 'OCR tamamlandi.' color col_positive.
-      catch zcx_zrpd_edev_api into data(lx_ocr).
+      catch zcx_zrpd_edev into data(lx_ocr).
         write: / 'OCR hatasi:', lx_ocr->get_text( ) color col_negative. return.
     endtry.
   else.
@@ -151,7 +151,7 @@ start-of-selection.
       lv_valid = lo_base->validate_tckn( lv_tckn ).
       if lv_valid = abap_true. write: / 'Checksum: GECERLI' color col_positive.
       else. write: / 'Checksum: HATALI' color col_negative. endif.
-    catch zcx_zrpd_edev_extract into data(lx1).
+    catch zcx_zrpd_edev into data(lx1).
       write: / 'TCKN bulunamadi:', lx1->get_text( ) color col_negative.
   endtry.
   uline.
@@ -161,26 +161,23 @@ start-of-selection.
   try.
       lv_barcode = lo_base->extract_barcode( lv_text ).
       write: / 'Barkod:', lv_barcode.
-    catch zcx_zrpd_edev_extract into data(lx2).
+    catch zcx_zrpd_edev into data(lx2).
       write: / 'Barkod bulunamadi:', lx2->get_text( ) color col_negative.
   endtry.
   uline.
 
   write: / '=== FULL PARSE ===' color col_heading.
-  data: lo_fac type ref to zcl_zrpd_edev_doc_fac, lo_parser type ref to zcl_zrpd_edev_doc_base,
+  data: lo_parser type ref to zcl_zrpd_edev_doc_ika,
         lt_vals type zrpd_edev_tt_dcval, ls_val type zrpd_edev_s_dcval.
-  create object lo_fac.
+  create object lo_parser.
   try.
-      lo_parser = lo_fac->create_parser( 'IKAMETGAH' ).
-      write: / 'Parser:', lo_parser->get_doc_type( ) color col_positive.
+      write: / 'Parser: IKAMETGAH' color col_positive.
       lt_vals = lo_parser->parse_fields( lv_text ).
       loop at lt_vals into ls_val.
         data lv_out type string.
         lv_out = |{ ls_val-field_name width = 15 align = left }: { ls_val-field_value } (conf={ ls_val-confidence })|.
         write: / lv_out.
       endloop.
-    catch zcx_zrpd_edev_valid into data(lx_fac).
-      write: / 'Factory hatasi:', lx_fac->get_text( ) color col_negative.
-    catch zcx_zrpd_edev_extract into data(lx3).
+    catch zcx_zrpd_edev into data(lx3).
       write: / 'Parse hatasi:', lx3->get_text( ) color col_negative.
   endtry.

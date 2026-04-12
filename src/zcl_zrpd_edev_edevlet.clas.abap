@@ -1,11 +1,15 @@
 class zcl_zrpd_edev_edevlet definition public final create public.
 
   public section.
-    interfaces zif_zrpd_edev_edevlet.
 
-    methods constructor
+    methods verify
       importing
-        io_cust_repo type ref to zif_zrpd_edev_cust_repo optional.
+        iv_barcode         type zrpd_edev_de_bcno
+        iv_tckn            type char11
+      returning
+        value(rv_verified) type abap_bool
+      raising
+        zcx_zrpd_edev.
 
     methods fetch_pdf
       importing
@@ -14,12 +18,12 @@ class zcl_zrpd_edev_edevlet definition public final create public.
       returning
         value(rv_pdf)  type xstring
       raising
-        zcx_zrpd_edev_api.
+        zcx_zrpd_edev.
 
   private section.
-    data mo_cust_repo type ref to zif_zrpd_edev_cust_repo.
     data mv_last_body type string.
 
+    constants co_dest type c length 32 value 'ZRPD_EDEV_EDEVLET'.
     constants co_path type string value '/api.php'.
     constants co_param_p type string value 'belge-dogrulama'.
 
@@ -37,7 +41,7 @@ class zcl_zrpd_edev_edevlet definition public final create public.
         ev_status  type i
         ev_body    type string
       raising
-        zcx_zrpd_edev_api.
+        zcx_zrpd_edev.
 
     methods get_timeout
       returning
@@ -63,11 +67,7 @@ endclass.
 
 class zcl_zrpd_edev_edevlet implementation.
 
-  method constructor.
-    mo_cust_repo = io_cust_repo.
-  endmethod.
-
-  method zif_zrpd_edev_edevlet~verify.
+  method verify.
     data lv_query   type string.
     data lv_status  type i.
     data lv_body    type string.
@@ -78,7 +78,7 @@ class zcl_zrpd_edev_edevlet implementation.
     data lv_lower   type string.
     data lv_success type abap_bool.
     data lv_exp     type i.
-    data lx_err     type ref to zcx_zrpd_edev_api.
+    data lx_err     type ref to zcx_zrpd_edev.
 
     rv_verified = abap_false.
     clear mv_last_body.
@@ -105,12 +105,12 @@ class zcl_zrpd_edev_edevlet implementation.
           endif.
 
           if lv_status >= 400 and lv_status < 500.
-            raise exception type zcx_zrpd_edev_api
+            raise exception type zcx_zrpd_edev
               exporting mv_msgv1 = 'e-Devlet client error'
                         mv_msgv2 = conv symsgv( lv_status ).
           endif.
 
-        catch zcx_zrpd_edev_api into lx_err.
+        catch zcx_zrpd_edev into lx_err.
           if lv_retry >= lv_max.
             raise exception lx_err.
           endif.
@@ -128,7 +128,7 @@ class zcl_zrpd_edev_edevlet implementation.
     endwhile.
 
     if lv_success = abap_false.
-      raise exception type zcx_zrpd_edev_api
+      raise exception type zcx_zrpd_edev
         exporting mv_msgv1 = 'e-Devlet max retries exceeded'.
     endif.
 
@@ -167,7 +167,7 @@ class zcl_zrpd_edev_edevlet implementation.
         importing ev_status = lv_status
                   ev_body   = lv_body ).
       if lv_status < 200 or lv_status >= 300.
-        raise exception type zcx_zrpd_edev_api
+        raise exception type zcx_zrpd_edev
           exporting mv_msgv1 = 'fetch_pdf HTTP error'
                     mv_msgv2 = conv symsgv( lv_status ).
       endif.
@@ -178,7 +178,7 @@ class zcl_zrpd_edev_edevlet implementation.
       iv_field = 'barkodlubelge' ).
 
     if lv_b64 is initial.
-      raise exception type zcx_zrpd_edev_api
+      raise exception type zcx_zrpd_edev
         exporting mv_msgv1 = 'barkodlubelge alani bos'.
     endif.
 
@@ -197,7 +197,7 @@ class zcl_zrpd_edev_edevlet implementation.
         ssf_krn_invalid_parlen   = 7
         others = 8.
     if sy-subrc <> 0.
-      raise exception type zcx_zrpd_edev_api
+      raise exception type zcx_zrpd_edev
         exporting mv_msgv1 = 'Base64 decode basarisiz'.
     endif.
   endmethod.
@@ -248,7 +248,7 @@ class zcl_zrpd_edev_edevlet implementation.
     data lv_rcverr type string.
     clear: ev_status, ev_body.
     cl_http_client=>create_by_destination(
-      exporting destination = zcl_zrpd_edev_const=>co_dest_edevlet
+      exporting destination = co_dest
       importing client      = lo_client
       exceptions
         argument_not_found    = 1
@@ -256,9 +256,9 @@ class zcl_zrpd_edev_edevlet implementation.
         internal_error        = 3
         others                = 4 ).
     if sy-subrc <> 0.
-      raise exception type zcx_zrpd_edev_api
+      raise exception type zcx_zrpd_edev
         exporting mv_msgv1 = 'SM59 destination error'
-                  mv_msgv2 = conv symsgv( zcl_zrpd_edev_const=>co_dest_edevlet ).
+                  mv_msgv2 = conv symsgv( co_dest ).
     endif.
     concatenate co_path '?' iv_query into lv_uri.
     cl_http_utility=>set_request_uri(
@@ -274,7 +274,7 @@ class zcl_zrpd_edev_edevlet implementation.
     if sy-subrc <> 0.
       lo_client->get_last_error( importing message = lv_errmsg ).
       lo_client->close( ).
-      raise exception type zcx_zrpd_edev_api
+      raise exception type zcx_zrpd_edev
         exporting mv_msgv1 = 'HTTP send failed'
                   mv_msgv2 = conv symsgv( lv_errmsg ).
     endif.
@@ -286,7 +286,7 @@ class zcl_zrpd_edev_edevlet implementation.
     if sy-subrc <> 0.
       lo_client->get_last_error( importing message = lv_rcverr ).
       lo_client->close( ).
-      raise exception type zcx_zrpd_edev_api
+      raise exception type zcx_zrpd_edev
         exporting mv_msgv1 = 'HTTP receive failed'
                   mv_msgv2 = conv symsgv( lv_rcverr ).
     endif.
@@ -296,36 +296,39 @@ class zcl_zrpd_edev_edevlet implementation.
   endmethod.
 
   method get_timeout.
-    if mo_cust_repo is bound.
-      data(lv_val) = mo_cust_repo->get_param( 'API_TIMEOUT' ).
-      if lv_val is not initial.
-        rv_timeout = lv_val.
-        return.
-      endif.
+    data lv_val type zrpd_edev_t_parm-param_value.
+    select single param_value from zrpd_edev_t_parm
+      where param_key = 'API_TIMEOUT'
+      into @lv_val.
+    if sy-subrc = 0 and lv_val is not initial.
+      rv_timeout = lv_val.
+    else.
+      rv_timeout = 30.
     endif.
-    rv_timeout = 30.
   endmethod.
 
   method get_retry_count.
-    if mo_cust_repo is bound.
-      data(lv_val) = mo_cust_repo->get_param( 'API_RETRY_COUNT' ).
-      if lv_val is not initial.
-        rv_count = lv_val.
-        return.
-      endif.
+    data lv_val type zrpd_edev_t_parm-param_value.
+    select single param_value from zrpd_edev_t_parm
+      where param_key = 'API_RETRY_COUNT'
+      into @lv_val.
+    if sy-subrc = 0 and lv_val is not initial.
+      rv_count = lv_val.
+    else.
+      rv_count = 3.
     endif.
-    rv_count = 3.
   endmethod.
 
   method get_retry_base_wait.
-    if mo_cust_repo is bound.
-      data(lv_val) = mo_cust_repo->get_param( 'API_RETRY_BASE_WAIT' ).
-      if lv_val is not initial.
-        rv_seconds = lv_val.
-        return.
-      endif.
+    data lv_val type zrpd_edev_t_parm-param_value.
+    select single param_value from zrpd_edev_t_parm
+      where param_key = 'API_RETRY_BASE_WAIT'
+      into @lv_val.
+    if sy-subrc = 0 and lv_val is not initial.
+      rv_seconds = lv_val.
+    else.
+      rv_seconds = 2.
     endif.
-    rv_seconds = 2.
   endmethod.
 
 endclass.

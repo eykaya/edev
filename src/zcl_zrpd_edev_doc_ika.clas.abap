@@ -123,7 +123,7 @@ class zcl_zrpd_edev_doc_ika implementation.
         if lv_tckn = ''.
           lv_tckn = extract_tckn( iv_text ).
         endif.
-      catch zcx_zrpd_edev_extract.
+      catch zcx_zrpd_edev.
     endtry.
     append_field(
       exporting
@@ -136,7 +136,7 @@ class zcl_zrpd_edev_doc_ika implementation.
     " BARKOD
     try.
         lv_bc = extract_barcode( iv_text ).
-      catch zcx_zrpd_edev_extract.
+      catch zcx_zrpd_edev.
     endtry.
     append_field(
       exporting
@@ -272,7 +272,7 @@ class zcl_zrpd_edev_doc_ika implementation.
       endif.
     endloop.
     if lv_count = 0.
-      raise exception type zcx_zrpd_edev_extract
+      raise exception type zcx_zrpd_edev
         exporting mv_msgv1 = 'No fields extracted'.
     endif.
   endmethod.
@@ -945,7 +945,7 @@ class zcl_zrpd_edev_doc_ika implementation.
       lv_match = iv_text+lv_d_off(lv_d_len).
       try.
           rv_dats = parse_date( lv_match ).
-        catch zcx_zrpd_edev_extract.
+        catch zcx_zrpd_edev.
           rv_dats = '00000000'.
       endtry.
     else.
@@ -1004,4 +1004,3 @@ class zcl_zrpd_edev_doc_ika implementation.
   endmethod.
 
 endclass.
-

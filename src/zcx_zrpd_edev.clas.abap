@@ -1,4 +1,4 @@
-class zcx_zrpd_edev_base definition public abstract
+class zcx_zrpd_edev definition public
   inheriting from cx_static_check create public.
 
   public section.
@@ -19,9 +19,9 @@ class zcx_zrpd_edev_base definition public abstract
 
 endclass.
 
-class zcx_zrpd_edev_base implementation.
+class zcx_zrpd_edev implementation.
 
-  method constructor.
+  method constructor ##ADT_SUPPRESS_GENERATION.
     super->constructor(
       textid   = textid
       previous = previous ).

@@ -246,7 +246,7 @@ class zcl_im_rpd_edev implementation.
     try.
         create object lo_edv.
 
-        lv_ok = lo_edv->zif_zrpd_edev_edevlet~verify(
+        lv_ok = lo_edv->verify(
           iv_barcode = lv_barcode
           iv_tckn    = lv_tckn ).
         if lv_ok <> abap_true.
@@ -268,7 +268,7 @@ class zcl_im_rpd_edev implementation.
         if lv_text is initial
           or ( lv_upper ns 'KIMLIK' and lv_upper ns 'YERLESIM' and lv_upper ns 'ADRES' ).
           create object lo_ocr.
-          lv_text = lo_ocr->zif_zrpd_edev_ext_svc~extract_text( lv_pdf ).
+          lv_text = lo_ocr->extract_text( lv_pdf ).
         endif.
 
         create object lo_parser type zcl_zrpd_edev_doc_ika.
