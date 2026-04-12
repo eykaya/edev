@@ -34,20 +34,71 @@
       "Bash(/Users/emreyalcinkaya/.rapidhcm/planner-venv/bin/python3 -c \"import msal; import mcp; print\\('OK'\\)\")",
       "Bash(/Users/emreyalcinkaya/.rapidhcm/planner-venv/bin/python3 -c ':*)",
       "Bash(/Users/emreyalcinkaya/.rapidhcm/planner-venv/bin/python3)",
-      "Bash(npm run:*)"
+      "Read(//Users/emreyalcinkaya/**)",
+      "Bash(git check-ignore:*)",
+      "Bash(timeout 10 node node_modules/@mcp-abap-adt/core/bin/mcp-abap-adt.js --help)",
+      "Bash(gtimeout 10 node node_modules/@mcp-abap-adt/core/bin/mcp-abap-adt.js --help)",
+      "Bash(node -e \"setTimeout\\(\\(\\) => process.exit\\(0\\), 3000\\); const cp = require\\('child_process'\\); const p = cp.spawn\\('node', ['node_modules/@mcp-abap-adt/core/bin/mcp-abap-adt.js', '--help'], {timeout: 5000}\\); p.stdout.on\\('data', d => process.stdout.write\\(d\\)\\); p.stderr.on\\('data', d => process.stderr.write\\(d\\)\\); p.on\\('close', \\(\\) => process.exit\\(0\\)\\);\")",
+      "Bash(echo \"exit: $?\")",
+      "Bash(timeout 15 node -e ':*)",
+      "Bash(node -e \"const pkg = require\\('./node_modules/@mcp-abap-adt/core/package.json'\\); console.log\\('Version:', pkg.version\\); console.log\\('Main:', pkg.main\\); console.log\\('Bin:', JSON.stringify\\(pkg.bin\\)\\);\")",
+      "Bash(node node_modules/@mcp-abap-adt/core/bin/mcp-abap-adt.js --system-type=onprem --exposition=readonly,high,low)",
+      "Bash(node -e \"const pkg = require\\('./node_modules/@mcp-abap-adt/core/package.json'\\); console.log\\('Installed:', pkg.version\\); console.log\\('MCP SDK dep:', pkg.dependencies?.['@modelcontextprotocol/sdk'] || 'N/A'\\);\")",
+      "Bash(node -e \"const pkg = require\\('./node_modules/@modelcontextprotocol/sdk/package.json'\\); console.log\\('MCP SDK installed:', pkg.version\\);\")",
+      "Bash(SAP_URL=\"http://213.14.157.178:8000\" SAP_CLIENT=\"100\" SAP_USER=\"ZEKI\" SAP_PASSWORD=\"R@pid1234*\" SAP_LANGUAGE=\"TR\" node /Users/emreyalcinkaya/Projects/EDEV/abap-template/tools/dassian-adt/dist/index.js)",
+      "Bash(node tools/dassian-adt/dist/index.js)",
+      "mcp__sap-adt__abap_search",
+      "Bash(shopt -s dotglob)",
+      "Bash(mv * ../)",
+      "Bash(echo \"EXIT: $?\")",
+      "mcp__sap-adt__login",
+      "Bash(openssl s_client -connect turkiye.gov.tr:443 -servername turkiye.gov.tr -showcerts)",
+      "Bash(openssl x509:*)",
+      "Bash(openssl s_client -connect m.turkiye.gov.tr:443 -servername m.turkiye.gov.tr -showcerts)",
+      "mcp__sap-adt__abap_activate",
+      "mcp__sap-adt__raw_http",
+      "mcp__sap-adt__abap_get_dump",
+      "mcp__sap-adt__abap_table",
+      "mcp__sap-adt__abap_object_info",
+      "mcp__sap-adt__abap_where_used",
+      "mcp__sap-adt__abap_query",
+      "mcp__sap-adt__transport_list",
+      "mcp__sap-adt__abap_activate_batch",
+      "Bash(/usr/bin/find /Users/emreyalcinkaya/Projects/EDEV/src -name 'package.devc.xml')",
+      "Bash(xargs -I{} dirname {})"
+    ],
+    "additionalDirectories": [
+      "/Users/emreyalcinkaya/Projects/EDEV/abap-template",
+      "/tmp"
     ]
   },
   "mcpServers": {
+    "planner": {
+      "command": "/Users/emreyalcinkaya/.rapidhcm/planner-venv/bin/python3",
+      "args": [
+        "/Users/emreyalcinkaya/Projects/EDEV/abap-template/tools/planner_mcp.py"
+      ],
+      "env": {}
+    },
+    "sap-fiori-tools": {
+      "command": "npx",
+      "args": [
+        "@sap-ux/fiori-mcp-server",
+        "--stdio"
+      ]
+    },
+    "sap-ui5": {
+      "command": "npx",
+      "args": [
+        "@ui5/mcp-server",
+        "--stdio"
+      ]
+    },
     "sap-adt": {
       "command": "node",
-      "args": ["tools/abap-mcp-unified/dist/index.js"],
-      "env": {
-        "SAP_URL": "{SAP_URL}",
-        "SAP_CLIENT": "{SAP_CLIENT}",
-        "SAP_USER": "{SAP_USER}",
-        "SAP_PASSWORD": "{SAP_PASSWORD}",
-        "SAP_LANGUAGE": "{SAP_LANGUAGE}"
-      }
+      "args": [
+        "tools/dassian-adt/dist/index.js"
+      ]
     }
   }
 }

@@ -1,6 +1,6 @@
 # ABAP Gelistirme Ortami
 
-Sen 20+ yillik deneyime sahip senior bir SAP ABAP mimarisin. Clean ABAP, OO tasarim, ECC 6.0, S/4HANA ve BTP Cloud platformlarinda derin uzmanliga sahipsin.
+Sen 20+ yillik deneyime sahip senior bir SAP ABAP mimarisin. Clean ABAP, OO tasarim, ECC 6.0, S/4HANA ve BTP Cloud platformlarinda derin uzmanliga sahipsin. Kod YAZMA!, agenta yaptır işlemlerini. Orkestra şefi gibi ol, jazz orkestrası değil.
 
 ## Proje Konfigurasyonu
 
@@ -19,6 +19,16 @@ Sen 20+ yillik deneyime sahip senior bir SAP ABAP mimarisin. Clean ABAP, OO tasa
 > 2. Tum dokumanlarda `ZRPD_{XXXX}` → `ZRPD_ABCD` olarak degistir
 > 3. `.abaplint.json`'daki `[A-Z]{4}` → literal 4 harfinle degistir (ornegin `ABCD`)
 > 4. SQL view name limiti: prefix 11 karakter tuketir, identifier icin **5 karakter** kalir
+
+## Paket Sadelik Kurali (EDEV Retrospektif)
+
+- Flat paket varsayilan — sub-package sadece 5+ obje/ayri ekip gerektiriyorsa (K5)
+- Single-use interface yasak — 2+ impl yoksa interface olusturma (K1)
+- Preemptive factory yasak — runtime'da 3+ tip secimi yoksa factory yazma (K2)
+- Tek exception class — msgno ile tip ayirt et, subclass olusturma (K3)
+- Mock = local test class — global mock CLAS objesi olusturma (K4)
+- Dead code 1-sprint kurali — kullanilmayan kod en gec 1 sprint icinde silinir (K9)
+- Detaylar: [`docs/standartlar/yasaklanan-pratikler.md`](docs/standartlar/yasaklanan-pratikler.md) (K1-K12)
 
 ## Gelistirme Sureci (KRITIK!)
 
@@ -94,6 +104,19 @@ PDF text extraction icin Python OCR kullanilir (e-Devlet PDF'leri image-based).
 **Akis:** PDF xstring -> diske yaz -> Python OCR -> JSON dosya -> ABAP oku -> parse
 
 > **Onemli:** `SXPG_COMMAND_EXECUTE` parametreleri `TYPE string` degil `TYPE sxpgcostab-parameters` (CHAR 255) olmali. String tip `CX_SY_DYN_CALL_ILLEGAL_TYPE` verir.
+
+### OCR Tuzaklari (KRITIK)
+
+| Tuzak | Cozum |
+|-------|-------|
+| Tesseract bosluk yerine U+00A0 (NBSP) koyar | OCR text isleyen method'un BASINDA `cl_abap_conv_in_ce=>uccp('00A0')` ile temizle |
+| `REPLACE WITH ' '` (type c) bos string olur | `lv_repl TYPE string = \| \|` kullan, ASLA literal `' '` |
+| Turkce dosya adlari OPEN DATASET'te acilmaz | Python `os.listdir` + `shutil.copy` ile ASCII isme kopyala |
+| Adres slash'i (/) bina_no icinde olabilir (13/1) | `' / '` (bosluklu) ile ilce/il ayiraci ara, `13/1` atlanir |
+
+### Parser Test Senaryolari
+
+Her parser degisikliginden ONCE 4 senaryo gecmeli: `tests/test_scenarios_ika.md`
 
 ## Referanslar
 

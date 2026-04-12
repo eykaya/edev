@@ -1,9 +1,9 @@
 # Ikametgah Parser Test Senaryolari
 
 Bu dosya `ZCL_ZRPD_EDEV_DOC_IKA` parser'inin regresyon testleri icin kullanilir.
-Her fix oncesi bu 4 senaryo gecmelidir.
+Her fix oncesi bu 5 senaryo gecmelidir.
 
-OCR text dosyalari SAP sunucuda: `F:\usr\sap\edev\{test,ik4,ik5,ik7}_text.txt`
+OCR text dosyalari SAP sunucuda: `F:\usr\sap\edev\{test,ik4,ik5,ik7,ik8}_text.txt`
 
 ---
 
@@ -107,6 +107,33 @@ OCR text dosyalari SAP sunucuda: `F:\usr\sap\edev\{test,ik4,ik5,ik7}_text.txt`
 | ilce | PENDIK |
 | il | ISTANBUL |
 | belge_tarihi | 20260409 |
+
+---
+
+## Senaryo 5: UMIT YASAR AKIN
+
+**Dosya:** ikametgah8.pdf / ik8_text.txt
+**Format:** Tek satir adres, ilce kelimesi (KARTAL) site_apartman icinde de geciyor (`KARTAL SITESI`)
+**Ozellik:** `parse_address_line` ilce occurrence'ini son kelimeden bulmali, ilk match'i degil. Aksi halde street erken kesilir, NO: ve site bilgisi kaybolur.
+
+| Alan | Beklenen |
+|------|----------|
+| tc_kimlik_no | 55336549358 |
+| barkod | NV02-IGVZ-G50F-01TW |
+| ad_soyad | UMIT YASAR AKIN |
+| adres_no | 3103030239 |
+| mahalle | CUMHURIYET |
+| cadde | (bos) |
+| sokak | YOSUN |
+| site_apartman | PRESTIJ PARK KARTAL SITESI |
+| blok | (bos) |
+| bina_no | 3B |
+| ic_kapi_no | 10 |
+| ilce | KARTAL |
+| il | ISTANBUL |
+| belge_tarihi | 20260410 |
+
+> Fix detayi: `parse_address_line` icinde ilce kelimesi street_part icinde aranirken `find first occurrence` yerine length-based suffix strip kullaniliyor. Condense sonrasi `lv_street_part` her zaman ev_district ile bittigi icin son N karakteri ev_district ile karsilastir, eslesirse oncesini al.
 
 ---
 
