@@ -6,15 +6,82 @@ class zcl_im_rpd_edev definition
   public section.
     interfaces if_ex_hrpad00infty.
     class-methods process_edev.
+    class-methods process_command
+      importing
+        iv_action type string.
 
   private section.
-    constants co_sgui_prog type progname           value 'ZRPD_EDEV_R_SGUI'.
-    constants co_sgui_stat type sypfkey            value 'INS'.
-    constants co_mp_p0006  type string             value '(MP000600)P0006'.
-    constants co_doc_type  type zrpd_edev_de_dctyp value 'IKAMETGAH'.
+    constants co_sgui_prog  type progname value 'ZRPD_EDEV_R_SGUI'.
+    constants co_sgui_stat  type sypfkey  value 'INS'.
+    constants co_mp_p0006   type string   value '(MP000600)P0006'.
+    constants co_infty_0006 type infty    value '0006'.
+    constants co_cmd_upload type string   value 'UPLOAD'.
+    constants co_cmd_view   type string   value 'VIEW'.
+    constants co_cmd_delete type string   value 'DELETE'.
 
-    class-data gs_pending     type p0006.
-    class-data gv_has_pending type abap_bool.
+    class-data gs_pending         type p0006.
+    class-data gv_has_pending     type abap_bool.
+    class-data gv_pending_file    type xstring.
+    class-data gv_pending_atip    type n length 2.
+    class-data gv_pending_pernr   type persno.
+    class-data gv_pending_config  type zrpd_djtl_de_confg.
+    class-data gv_pending_source  type zrpd_djtl_de_source.
+    class-data gv_current_infty   type infty.
+
+    class-methods resolve_mapping
+      importing
+        iv_infty        type infty
+      exporting
+        ev_atip         type n
+        ev_doc_type     type zrpd_edev_de_dctyp
+        ev_parser_class type seoclsname
+        ev_found        type abap_bool.
+
+    class-methods get_pernr
+      returning
+        value(rv_pernr) type persno.
+
+    class-methods process_upload
+      importing
+        iv_atip     type n
+        iv_doc_type type zrpd_edev_de_dctyp
+        iv_parser   type seoclsname.
+    class-methods process_view.
+    class-methods process_delete.
+
+    class-methods get_current_record
+      exporting
+        ev_pernr type persno
+        ev_subty type subty_591a
+        ev_confg type zrpd_djtl_de_confg
+        ev_filep type zrpd_djtl_de_filep
+        ev_found type abap_bool.
+
+    constants co_djtl_class type seoclsname value 'ZCL_ZRPD_DJTL_FILE'.
+
+    class-data gv_djtl_checked type abap_bool.
+    class-data gv_djtl_avail   type abap_bool.
+
+    class-methods is_djtl_available
+      returning
+        value(rv_avail) type abap_bool.
+
+    class-methods has_djtl_method
+      importing
+        iv_method        type seocpdname
+      returning
+        value(rv_exists) type abap_bool.
+
+    class-methods upload_from_edevlet
+      importing
+        iv_pernr    type persno
+        iv_atip     type n
+        iv_doc_type type zrpd_edev_de_dctyp.
+
+    class-methods upload_from_file
+      importing
+        iv_pernr type persno
+        iv_atip  type n.
 
     class-methods process_p0006
       changing
@@ -29,6 +96,10 @@ class zcl_im_rpd_edev definition
     class-methods normalize_turkish
       changing
         cv_text type string.
+
+    class-methods generate_confg_id
+      returning
+        value(rv_confg) type zrpd_djtl_de_confg.
 
 endclass.
 
@@ -89,28 +160,33 @@ class zcl_im_rpd_edev implementation.
   endmethod.
 
   method if_ex_hrpad00infty~before_output.
-    data lv_dummy   type abap_bool.
+    data lv_atip    type n length 2.
+    data lv_found   type abap_bool.
+    data lv_doc_type type zrpd_edev_de_dctyp.
+    data lv_parser  type seoclsname.
     data lt_targets type standard table of zrpd_edev_de_iflnm.
     data lv_target  type zrpd_edev_de_iflnm.
     field-symbols <ls_0006> type p0006.
     field-symbols <fs_src>  type any.
     field-symbols <fs_dst>  type any.
 
-    if innnn-infty <> '0006'. return. endif.
-    if ipsyst-ioper <> 'INS'. return. endif.
+    gv_current_infty = innnn-infty.
 
-    select single @abap_true from zrpd_edev_t_dmap
-      into @lv_dummy
-      where infotype = @innnn-infty.
-    if sy-subrc <> 0. return. endif.
+    resolve_mapping(
+      exporting iv_infty = innnn-infty
+      importing ev_atip  = lv_atip
+                ev_doc_type = lv_doc_type
+                ev_parser_class = lv_parser
+                ev_found = lv_found ).
+    if lv_found = abap_false. return. endif.
 
-    if gv_has_pending = abap_true.
+    if gv_has_pending = abap_true and innnn-infty = co_infty_0006.
       assign (co_mp_p0006) to <ls_0006>.
       if sy-subrc = 0.
         select distinct infotype_field
           from zrpd_edev_t_dmap
           into table @lt_targets
-          where doc_type       = @co_doc_type
+          where doc_type       = @lv_doc_type
             and infotype       = '0006'
             and infotype_field <> @space.
 
@@ -136,33 +212,174 @@ class zcl_im_rpd_edev implementation.
   endmethod.
 
   method if_ex_hrpad00infty~in_update.
+    data lv_ok     type abap_bool.
+    data lv_filep  type string.
+    data lv_msg    type string.
+    data lv_subty  type subty_591a.
+    data lv_pernr  type persno.
+    data lv_file   type xstring.
+    data lv_source type zrpd_djtl_de_source.
+    data lv_config type zrpd_djtl_de_confg.
+
+    if ipspar-infty <> co_infty_0006.
+      return.
+    endif.
+
+    if gv_pending_file is initial.
+      return.
+    endif.
+
+    lv_subty  = gv_pending_atip.
+    lv_pernr  = gv_pending_pernr.
+    lv_file   = gv_pending_file.
+    lv_source = gv_pending_source.
+    lv_config = gv_pending_config.
+
+    clear: gv_pending_file, gv_pending_atip, gv_pending_pernr,
+           gv_pending_source, gv_pending_config.
+
+    if has_djtl_method( 'WRITE_FILE_AND_CREATE_RECORD' ) = abap_false.
+      message 'DJTL paketi bulunamadi, dokuman saklanamadi' type 'S' display like 'W'.
+      return.
+    endif.
+
+    try.
+        call method ('ZCL_ZRPD_DJTL_FILE')=>('WRITE_FILE_AND_CREATE_RECORD')
+          exporting
+            iv_pernr     = lv_pernr
+            iv_subtyp    = lv_subty
+            iv_begda     = sy-datum
+            iv_file_data = lv_file
+            iv_source    = lv_source
+            iv_config    = lv_config
+          importing
+            ev_xuploaded = lv_ok
+            ev_filename  = lv_filep
+            ev_message   = lv_msg.
+      catch cx_sy_dyn_call_illegal_class.
+        message 'DJTL paketi bulunamadi' type 'S' display like 'W'.
+      catch cx_root.
+        message 'DJTL dosya yazim hatasi' type 'S' display like 'W'.
+    endtry.
   endmethod.
 
-  method process_edev.
+  method process_command.
+    data lv_atip      type n length 2.
+    data lv_doc_type  type zrpd_edev_de_dctyp.
+    data lv_parser    type seoclsname.
+    data lv_found     type abap_bool.
+
+    resolve_mapping(
+      exporting iv_infty        = gv_current_infty
+      importing ev_atip         = lv_atip
+                ev_doc_type     = lv_doc_type
+                ev_parser_class = lv_parser
+                ev_found        = lv_found ).
+
+    if lv_found = abap_false.
+      message 'Bu bilgi tipi icin belge eslesmesi bulunamadi' type 'S' display like 'W'.
+      return.
+    endif.
+
+    case iv_action.
+      when co_cmd_upload.
+        process_upload(
+          iv_atip     = lv_atip
+          iv_doc_type = lv_doc_type
+          iv_parser   = lv_parser ).
+      when co_cmd_view.
+        process_view( ).
+      when co_cmd_delete.
+        process_delete( ).
+    endcase.
+  endmethod.
+
+  method resolve_mapping.
+    clear: ev_atip, ev_doc_type, ev_parser_class.
+    ev_found = abap_false.
+
+    select single djtl_atip, doc_type, parser_class
+      from zrpd_edev_t_dtyp
+      into (@ev_atip, @ev_doc_type, @ev_parser_class)
+      where infotype = @iv_infty
+        and active   = 'X'.
+    if sy-subrc = 0.
+      ev_found = abap_true.
+    endif.
+  endmethod.
+
+  method get_pernr.
+    field-symbols <lv_pernr> type persno.
+    assign ('(SAPFP50M)PSPAR-PERNR') to <lv_pernr>.
+    if sy-subrc = 0.
+      rv_pernr = <lv_pernr>.
+    endif.
+  endmethod.
+
+  method process_upload.
+    data lv_pernr  type persno.
+    data lv_choice type c length 1.
+
+    lv_pernr = get_pernr( ).
+    if lv_pernr is initial.
+      message 'PERNR alinamadi' type 'S' display like 'E'.
+      return.
+    endif.
+
+    if iv_parser is not initial.
+      call function 'POPUP_TO_DECIDE'
+        exporting
+          titel        = 'Belge Yukleme'
+          textline1    = 'Belge yukleme yontemi secin'
+          text_option1 = 'e-Devlet Barkod ile yukle'
+          text_option2 = 'Dosyadan yukle'
+        importing
+          answer       = lv_choice.
+      if lv_choice = 'A'.
+        return.
+      endif.
+
+      case lv_choice.
+        when '1'.
+          upload_from_edevlet(
+            iv_pernr    = lv_pernr
+            iv_atip     = iv_atip
+            iv_doc_type = iv_doc_type ).
+        when '2'.
+          upload_from_file(
+            iv_pernr = lv_pernr
+            iv_atip  = iv_atip ).
+      endcase.
+    else.
+      upload_from_file(
+        iv_pernr = lv_pernr
+        iv_atip  = iv_atip ).
+    endif.
+  endmethod.
+
+  method upload_from_edevlet.
+    data lv_doc_type_const type zrpd_edev_de_dctyp.
     data lt_targets type standard table of zrpd_edev_de_iflnm.
     data lv_target  type zrpd_edev_de_iflnm.
     data lv_any     type abap_bool.
-    field-symbols <ls_mp>  type p0006.
     field-symbols <fs_val> type any.
+
+    lv_doc_type_const = iv_doc_type.
 
     clear gs_pending.
     clear gv_has_pending.
 
-    assign (co_mp_p0006) to <ls_mp>.
-    if sy-subrc = 0.
-      gs_pending-pernr = <ls_mp>-pernr.
-    endif.
-    if gs_pending-pernr is initial.
-      message 'ZEDV: PERNR alinamadi' type 'S' display like 'E'.
-      return.
-    endif.
-
+    gs_pending-pernr = iv_pernr.
     process_p0006( changing cs_0006 = gs_pending ).
+
+    gv_pending_atip   = iv_atip.
+    gv_pending_pernr  = iv_pernr.
+    gv_pending_source = '01'.
 
     select distinct infotype_field
       from zrpd_edev_t_dmap
       into table @lt_targets
-      where doc_type       = @co_doc_type
+      where doc_type       = @lv_doc_type_const
         and infotype       = '0006'
         and infotype_field <> @space.
 
@@ -176,10 +393,293 @@ class zcl_im_rpd_edev implementation.
 
     if lv_any = abap_true.
       gv_has_pending = abap_true.
-      message 'Adres yuklendi' type 'S'.
+      message 'Belge yuklendi, kaydetmek icin Save yapin' type 'S'.
     else.
       clear gs_pending.
     endif.
+  endmethod.
+
+  method upload_from_file.
+    data lt_file_table type filetable.
+    data lv_rc         type i.
+    data lv_filename   type string.
+    data lt_rawtab     type table of char255.
+    data lv_filelength type i.
+    data lv_xstring    type xstring.
+
+    cl_gui_frontend_services=>file_open_dialog(
+      exporting
+        file_filter = 'PDF (*.pdf)|*.pdf|JPEG (*.jpg)|*.jpg|PNG (*.png)|*.png'
+      changing
+        file_table = lt_file_table
+        rc         = lv_rc
+      exceptions others = 5 ).
+    if sy-subrc <> 0 or lv_rc < 1. return. endif.
+
+    read table lt_file_table into lv_filename index 1.
+
+    cl_gui_frontend_services=>gui_upload(
+      exporting
+        filename   = lv_filename
+        filetype   = 'BIN'
+      importing
+        filelength = lv_filelength
+      changing
+        data_tab   = lt_rawtab
+      exceptions others = 19 ).
+    if sy-subrc <> 0. return. endif.
+
+    call function 'SCMS_BINARY_TO_XSTRING'
+      exporting
+        input_length = lv_filelength
+      importing
+        buffer       = lv_xstring
+      tables
+        binary_tab   = lt_rawtab
+      exceptions others = 2.
+    if sy-subrc <> 0.
+      message 'Dosya donusturme hatasi' type 'S' display like 'E'.
+      return.
+    endif.
+
+    gv_pending_file   = lv_xstring.
+    gv_pending_atip   = iv_atip.
+    gv_pending_pernr  = iv_pernr.
+    gv_pending_source = '00'.
+    gv_pending_config = generate_confg_id( ).
+
+    message 'Dosya yuklendi, kaydetmek icin Save yapin' type 'S'.
+  endmethod.
+
+  method generate_confg_id.
+    data lv_uuid type sysuuid_x16.
+    data lv_hex  type string.
+
+    try.
+        lv_uuid = cl_system_uuid=>create_uuid_x16_static( ).
+        lv_hex  = lv_uuid.
+      catch cx_root.
+        lv_hex = |{ sy-datum }{ sy-uzeit }{ sy-uname }|.
+    endtry.
+
+    translate lv_hex to upper case.
+    shift lv_hex left deleting leading '0'.
+    if strlen( lv_hex ) < 16.
+      lv_hex = |{ lv_hex }0000000000000000|.
+    endif.
+
+    rv_confg = |{ lv_hex(4) }-{ lv_hex+4(4) }-{ lv_hex+8(4) }-{ lv_hex+12(4) }|.
+  endmethod.
+
+  method is_djtl_available.
+    data lo_descr type ref to cl_abap_typedescr.
+
+    if gv_djtl_checked = abap_true.
+      rv_avail = gv_djtl_avail.
+      return.
+    endif.
+
+    try.
+        lo_descr = cl_abap_typedescr=>describe_by_name( co_djtl_class ).
+        if lo_descr is bound.
+          gv_djtl_avail = abap_true.
+        endif.
+      catch cx_root.
+        gv_djtl_avail = abap_false.
+    endtry.
+
+    gv_djtl_checked = abap_true.
+    rv_avail = gv_djtl_avail.
+  endmethod.
+
+  method has_djtl_method.
+    data lo_class type ref to cl_abap_classdescr.
+    data lo_descr type ref to cl_abap_typedescr.
+
+    rv_exists = abap_false.
+    if is_djtl_available( ) = abap_false.
+      return.
+    endif.
+
+    try.
+        lo_descr ?= cl_abap_typedescr=>describe_by_name( co_djtl_class ).
+        lo_class ?= lo_descr.
+        if line_exists( lo_class->methods[ name = iv_method ] ).
+          rv_exists = abap_true.
+        endif.
+      catch cx_root.
+        rv_exists = abap_false.
+    endtry.
+  endmethod.
+
+  method get_current_record.
+    data lv_pernr type persno.
+    data lv_subty type subty_591a.
+    data lv_begda type begda.
+    data lv_seqnr type seqnr.
+    data lv_max   type seqnr.
+    field-symbols <lv_subty> type any.
+    field-symbols <lv_begda> type any.
+    field-symbols <lv_seqnr> type any.
+
+    clear: ev_pernr, ev_subty, ev_confg, ev_filep.
+    ev_found = abap_false.
+
+    lv_pernr = get_pernr( ).
+    if lv_pernr is initial.
+      return.
+    endif.
+
+    assign ('(SAPFP50M)PSPAR-SUBTY') to <lv_subty>.
+    if sy-subrc = 0.
+      lv_subty = <lv_subty>.
+    endif.
+
+    assign ('(SAPFP50M)PSPAR-BEGDA') to <lv_begda>.
+    if sy-subrc = 0.
+      lv_begda = <lv_begda>.
+    endif.
+    if lv_begda is initial.
+      lv_begda = sy-datum.
+    endif.
+
+    assign ('(SAPFP50M)PSPAR-SEQNR') to <lv_seqnr>.
+    if sy-subrc = 0.
+      lv_seqnr = <lv_seqnr>.
+    endif.
+
+    if lv_seqnr is initial.
+      select single max( seqnr )
+        from pa9657
+        where pernr = @lv_pernr
+          and subty = @lv_subty
+          and begda <= @lv_begda
+          and endda >= @lv_begda
+        into @lv_max.
+      if sy-subrc <> 0 or lv_max is initial.
+        return.
+      endif.
+      lv_seqnr = lv_max.
+    endif.
+
+    select single confg, filep
+      from pa9657
+      into (@ev_confg, @ev_filep)
+      where pernr = @lv_pernr
+        and subty = @lv_subty
+        and seqnr = @lv_seqnr
+        and begda <= @lv_begda
+        and endda >= @lv_begda.
+    if sy-subrc = 0.
+      ev_pernr = lv_pernr.
+      ev_subty = lv_subty.
+      ev_found = abap_true.
+    endif.
+  endmethod.
+
+  method process_view.
+    data lv_pernr type persno.
+    data lv_subty type subty_591a.
+    data lv_confg type zrpd_djtl_de_confg.
+    data lv_filep type zrpd_djtl_de_filep.
+    data lv_found type abap_bool.
+
+    get_current_record(
+      importing
+        ev_pernr = lv_pernr
+        ev_subty = lv_subty
+        ev_confg = lv_confg
+        ev_filep = lv_filep
+        ev_found = lv_found ).
+
+    if lv_found = abap_false.
+      message 'Aktif PA9657 kaydi bulunamadi' type 'S' display like 'W'.
+      return.
+    endif.
+
+    if has_djtl_method( 'VIEW_DOCUMENT' ) = abap_false.
+      message 'DJTL paketi bulunamadi, dokuman goruntulenemiyor' type 'S' display like 'W'.
+      return.
+    endif.
+
+    try.
+        call method ('ZCL_ZRPD_DJTL_FILE')=>('VIEW_DOCUMENT')
+          exporting
+            iv_pernr  = lv_pernr
+            iv_subtyp = lv_subty
+            iv_config = lv_confg.
+      catch cx_root.
+        message 'DJTL goruntuleme hatasi' type 'S' display like 'W'.
+    endtry.
+  endmethod.
+
+  method process_delete.
+    data lv_pernr  type persno.
+    data lv_subty  type subty_591a.
+    data lv_confg  type zrpd_djtl_de_confg.
+    data lv_filep  type zrpd_djtl_de_filep.
+    data lv_found  type abap_bool.
+    data lv_answer type c length 1.
+    data lv_ok     type abap_bool.
+    data lv_msg    type string.
+
+    get_current_record(
+      importing
+        ev_pernr = lv_pernr
+        ev_subty = lv_subty
+        ev_confg = lv_confg
+        ev_filep = lv_filep
+        ev_found = lv_found ).
+
+    if lv_found = abap_false.
+      message 'Aktif PA9657 kaydi bulunamadi' type 'S' display like 'W'.
+      return.
+    endif.
+
+    if has_djtl_method( 'DELETE_DOCUMENT' ) = abap_false.
+      message 'DJTL paketi bulunamadi, dokuman silinemiyor' type 'S' display like 'W'.
+      return.
+    endif.
+
+    call function 'POPUP_TO_CONFIRM'
+      exporting
+        titlebar              = 'Dokuman Silme Onayi'
+        text_question         = 'Bu islem PA9657 kaydiyla birlikte AL11 dokumanini da silecek. Devam edilsin mi?'
+        default_button        = '2'
+        display_cancel_button = abap_false
+      importing
+        answer                = lv_answer
+      exceptions
+        text_not_found        = 1
+        others                = 2.
+    if sy-subrc <> 0 or lv_answer <> '1'.
+      return.
+    endif.
+
+    try.
+        call method ('ZCL_ZRPD_DJTL_FILE')=>('DELETE_DOCUMENT')
+          exporting
+            iv_pernr              = lv_pernr
+            iv_subtyp             = lv_subty
+            iv_config             = lv_confg
+            iv_filep              = lv_filep
+            iv_skip_record_delete = abap_false
+          importing
+            ev_success            = lv_ok
+            ev_message            = lv_msg.
+
+        if lv_ok = abap_true.
+          message 'Dokuman ve kayit silindi' type 'S'.
+        else.
+          message lv_msg type 'S' display like 'W'.
+        endif.
+      catch cx_root.
+        message 'DJTL silme hatasi' type 'S' display like 'W'.
+    endtry.
+  endmethod.
+
+  method process_edev.
+    process_command( co_cmd_upload ).
   endmethod.
 
   method process_p0006.
@@ -203,13 +703,27 @@ class zcl_im_rpd_edev implementation.
     data lv_fn       type zrpd_edev_de_fldnm.
     data lv_it_field type zrpd_edev_de_iflnm.
     data lv_append   type string.
+    data lv_doc_type type zrpd_edev_de_dctyp.
     data: begin of ls_grp,
             it_field type zrpd_edev_de_iflnm,
             value    type string,
           end of ls_grp.
     data lt_grp like sorted table of ls_grp with unique key it_field.
+    data: begin of ls_map,
+            field_name     type zrpd_edev_de_fldnm,
+            infotype_field type zrpd_edev_de_iflnm,
+          end of ls_map.
+    data lt_map like sorted table of ls_map with unique key field_name.
     field-symbols <ls_grp> like ls_grp.
     field-symbols <fs_val> type any.
+    field-symbols <ls_map> like ls_map.
+
+    select single doc_type from zrpd_edev_t_dtyp
+      into @lv_doc_type
+      where infotype = '0006' and active = 'X'.
+    if sy-subrc <> 0.
+      lv_doc_type = 'IKAMETGAH'.
+    endif.
 
     select single merni from pa0770
       into lv_tckn
@@ -228,7 +742,7 @@ class zcl_im_rpd_edev implementation.
 
     call function 'POPUP_GET_VALUES'
       exporting
-        popup_title     = 'e-Devlet Ikametgah'
+        popup_title     = 'e-Devlet Belge Dogrulama'
       importing
         returncode      = lv_rc
       tables
@@ -242,6 +756,8 @@ class zcl_im_rpd_edev implementation.
     read table lt_fields into ls_field index 1.
     lv_barcode = ls_field-value.
     if lv_barcode is initial. return. endif.
+
+    gv_pending_config = lv_barcode.
 
     try.
         create object lo_edv.
@@ -261,6 +777,8 @@ class zcl_im_rpd_edev implementation.
           message 'Belge indirilemedi' type 'S' display like 'E'.
           return.
         endif.
+
+        gv_pending_file = lv_pdf.
 
         create object lo_base type zcl_zrpd_edev_doc_ika.
         lv_text = lo_base->pdf_to_text( lv_pdf ).
@@ -288,6 +806,14 @@ class zcl_im_rpd_edev implementation.
       return.
     endif.
 
+    select field_name, infotype_field
+      from zrpd_edev_t_dmap
+      where doc_type       = @lv_doc_type
+        and infotype       = @co_infty_0006
+        and infotype_field <> @space
+      into corresponding fields of table @lt_map.
+    if sy-subrc <> 0. lt_map = value #( ). endif.
+
     try.
         loop at lt_vals into ls_val.
           lv_fn = ls_val-field_name.
@@ -295,20 +821,18 @@ class zcl_im_rpd_edev implementation.
           if ls_val-field_value is initial. continue. endif.
 
           clear lv_it_field.
-          select single infotype_field
-            from zrpd_edev_t_dmap
-            into @lv_it_field
-            where doc_type   = @co_doc_type
-              and infotype   = '0006'
-              and field_name = @lv_fn.
-          if sy-subrc <> 0 or lv_it_field is initial. continue. endif.
+          read table lt_map assigning <ls_map> with table key field_name = lv_fn.
+          if sy-subrc <> 0 or <ls_map>-infotype_field is initial. continue. endif.
+          lv_it_field = <ls_map>-infotype_field.
 
           lv_append = ls_val-field_value.
           if lv_fn = 'blok'.
             lv_append = |{ ls_val-field_value } Blok|.
           elseif lv_fn = 'il'.
             lv_append = get_plate_code( ls_val-field_value ).
-            if lv_append is initial. continue. endif.
+            if lv_append is initial.
+              continue.
+            endif.
           endif.
 
           read table lt_grp assigning <ls_grp> with table key it_field = lv_it_field.
