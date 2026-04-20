@@ -12,7 +12,6 @@ class zcl_im_rpd_edev definition
 
   private section.
     constants co_sgui_prog  type progname value 'ZRPD_EDEV_R_SGUI'.
-    constants co_sgui_stat  type sypfkey  value 'INS'.
     constants co_mp_p0006   type string   value '(MP000600)P0006'.
     constants co_infty_0006 type infty    value '0006'.
     constants co_cmd_upload type string   value 'UPLOAD'.
@@ -26,6 +25,12 @@ class zcl_im_rpd_edev definition
     class-data gv_pending_pernr   type persno.
     class-data gv_pending_config  type zrpd_djtl_de_confg.
     class-data gv_pending_source  type zrpd_djtl_de_source.
+    class-data gv_pending_subty   type subty.
+    class-data gv_pending_objps   type pspar-objps.
+    class-data gv_pending_sprps   type pspar-sprps.
+    class-data gv_pending_endda   type endda.
+    class-data gv_pending_begda   type begda.
+    class-data gv_pending_seqnr   type pspar-seqnr.
     class-data gv_current_infty   type infty.
 
     class-methods resolve_mapping
@@ -57,7 +62,7 @@ class zcl_im_rpd_edev definition
         ev_filep type zrpd_djtl_de_filep
         ev_found type abap_bool.
 
-    constants co_djtl_class type seoclsname value 'ZCL_ZRPD_DJTL_FILE'.
+    constants co_djtl_class  type seoclsname    value 'ZCL_ZRPD_DJTL_FILE'.
 
     class-data gv_djtl_checked type abap_bool.
     class-data gv_djtl_avail   type abap_bool.
@@ -100,6 +105,8 @@ class zcl_im_rpd_edev definition
     class-methods generate_confg_id
       returning
         value(rv_confg) type zrpd_djtl_de_confg.
+
+    class-methods fill_pending_key.
 
 endclass.
 
@@ -157,6 +164,65 @@ class zcl_im_rpd_edev implementation.
   endmethod.
 
   method if_ex_hrpad00infty~after_input.
+    data: begin of ls_text,
+            nummer type x value '02',
+          end of ls_text.
+    data: begin of ls_line,
+            line(78) type c,
+          end of ls_line.
+    data lt_ptext  like standard table of ls_line with empty key.
+    data lv_pernr8 type char8.
+    data lv_subty4 type char4.
+    data lv_objps2 type char2.
+    data lv_sprps1 type char1.
+    data lv_endda8 type char8.
+    data lv_begda8 type char8.
+    data lv_seqnr3 type char3.
+    data lv_key    type char38.
+
+    field-symbols <ls_0006> type p0006.
+
+    " Only IT0006
+    if new_innnn-infty <> co_infty_0006.
+      return.
+    endif.
+
+    " Skip if no pending upload
+    if gv_pending_config is initial.
+      return.
+    endif.
+
+    " Write barcode into 78-char line
+    ls_line-line = gv_pending_config.
+
+    " Inline PCL1 EXPORT with correct format: text-version=structure, ptext=table
+    lv_pernr8 = new_innnn-pernr.
+    lv_subty4 = new_innnn-subty.
+    lv_objps2 = new_innnn-objps.
+    lv_sprps1 = new_innnn-sprps.
+    lv_endda8 = new_innnn-endda.
+    lv_begda8 = new_innnn-begda.
+    lv_seqnr3 = new_innnn-seqnr.
+
+    concatenate lv_pernr8 '0006' lv_subty4 lv_objps2 lv_sprps1
+                lv_endda8 lv_begda8 lv_seqnr3
+                into lv_key respecting blanks.
+
+    clear lt_ptext.
+    append ls_line-line to lt_ptext.
+
+    export text-version = ls_text
+           ptext        = lt_ptext
+      to database pcl1(tx) id lv_key.
+
+    " Store key fields for IN_UPDATE DJTL call
+    gv_pending_pernr = new_innnn-pernr.
+    gv_pending_subty = new_innnn-subty.
+    gv_pending_objps = new_innnn-objps.
+    gv_pending_sprps = new_innnn-sprps.
+    gv_pending_endda = new_innnn-endda.
+    gv_pending_begda = new_innnn-begda.
+    gv_pending_seqnr = new_innnn-seqnr.
   endmethod.
 
   method if_ex_hrpad00infty~before_output.
@@ -166,9 +232,12 @@ class zcl_im_rpd_edev implementation.
     data lv_parser  type seoclsname.
     data lt_targets type standard table of zrpd_edev_de_iflnm.
     data lv_target  type zrpd_edev_de_iflnm.
-    field-symbols <ls_0006> type p0006.
-    field-symbols <fs_src>  type any.
-    field-symbols <fs_dst>  type any.
+    data lv_status  type sypfkey.
+    field-symbols <ls_0006>     type p0006.
+    field-symbols <fs_src>      type any.
+    field-symbols <fs_dst>      type any.
+    field-symbols <lv_oper>     type c.
+    field-symbols <lv_cp_itxex> type any.
 
     gv_current_infty = innnn-infty.
 
@@ -208,35 +277,95 @@ class zcl_im_rpd_edev implementation.
       clear gv_has_pending.
     endif.
 
-    set pf-status co_sgui_stat of program co_sgui_prog.
+    " Upload yapilmissa ITXEX='X' set et (her upload path + her workarea)
+    if gv_pending_config is not initial and innnn-infty = co_infty_0006.
+      assign (co_mp_p0006) to <ls_0006>.
+      if sy-subrc = 0.
+        <ls_0006>-itxex = 'X'.
+      endif.
+
+      " (SAPFP50M)CPREL workarea (SAP save new_innnn'i bundan build ediyor)
+      assign ('(SAPFP50M)CPREL-ITXEX') to <lv_cp_itxex>.
+      if sy-subrc = 0.
+        <lv_cp_itxex> = 'X'.
+      endif.
+
+      " (SAPFP50M)PREL workarea (yedek)
+      assign ('(SAPFP50M)PREL-ITXEX') to <lv_cp_itxex>.
+      if sy-subrc = 0.
+        <lv_cp_itxex> = 'X'.
+      endif.
+
+      " (SAPFP50M)PSHDR workarea (SAP HR bazi yerlerde bunu kullaniyor)
+      assign ('(SAPFP50M)PSHDR-ITXEX') to <lv_cp_itxex>.
+      if sy-subrc = 0.
+        <lv_cp_itxex> = 'X'.
+      endif.
+    endif.
+
+    assign ('(SAPFP50M)PSYST-IOPER') to <lv_oper>.
+    if sy-subrc = 0.
+      case <lv_oper>.
+        when 'INS' or 'MOD' or 'DEL' or 'DIS' or 'LIS9' or 'COP'.
+          lv_status = <lv_oper>.
+      endcase.
+      if lv_status is not initial.
+        set pf-status lv_status of program co_sgui_prog.
+      endif.
+    endif.
   endmethod.
 
   method if_ex_hrpad00infty~in_update.
     data lv_ok     type abap_bool.
     data lv_filep  type string.
     data lv_msg    type string.
-    data lv_subty  type subty_591a.
     data lv_pernr  type persno.
     data lv_file   type xstring.
     data lv_source type zrpd_djtl_de_source.
     data lv_config type zrpd_djtl_de_confg.
+    data lv_atip   type n length 2.
+    data lv_subty  type subty.
+    data lv_objps  type pspar-objps.
+    data lv_sprps  type pspar-sprps.
+    data lv_endda  type endda.
+    data lv_begda  type begda.
+    data lv_seqnr  type pspar-seqnr.
+    data ls_pa0006 type pa0006.
 
-    if ipspar-infty <> co_infty_0006.
-      return.
-    endif.
-
+    " Tetikleyici: pending file varligi
     if gv_pending_file is initial.
       return.
     endif.
 
-    lv_subty  = gv_pending_atip.
+    " Islem icin degerleri topla (key alanlari dahil)
     lv_pernr  = gv_pending_pernr.
     lv_file   = gv_pending_file.
     lv_source = gv_pending_source.
     lv_config = gv_pending_config.
+    lv_atip   = gv_pending_atip.
+    lv_subty  = gv_pending_subty.
+    lv_objps  = gv_pending_objps.
+    lv_sprps  = gv_pending_sprps.
+    lv_endda  = gv_pending_endda.
+    lv_begda  = gv_pending_begda.
+    lv_seqnr  = gv_pending_seqnr.
 
+    " Pending state temizle (tum key alanlari dahil, tek sefer garantisi)
     clear: gv_pending_file, gv_pending_atip, gv_pending_pernr,
-           gv_pending_source, gv_pending_config.
+           gv_pending_source, gv_pending_config,
+           gv_pending_subty, gv_pending_objps, gv_pending_sprps,
+           gv_pending_endda, gv_pending_begda, gv_pending_seqnr.
+
+    " PA0006 aktif kaydini bul (sy-datum icinde gecerli)
+    select single pernr, subty, objps, sprps, endda, begda, seqnr, itxex
+      from pa0006
+      where pernr = @lv_pernr
+        and endda ge @sy-datum
+        and begda le @sy-datum
+      into corresponding fields of @ls_pa0006.
+    if sy-subrc ne 0.
+      return.
+    endif.
 
     if has_djtl_method( 'WRITE_FILE_AND_CREATE_RECORD' ) = abap_false.
       message 'DJTL paketi bulunamadi, dokuman saklanamadi' type 'S' display like 'W'.
@@ -247,7 +376,7 @@ class zcl_im_rpd_edev implementation.
         call method ('ZCL_ZRPD_DJTL_FILE')=>('WRITE_FILE_AND_CREATE_RECORD')
           exporting
             iv_pernr     = lv_pernr
-            iv_subtyp    = lv_subty
+            iv_subtyp    = lv_atip
             iv_begda     = sy-datum
             iv_file_data = lv_file
             iv_source    = lv_source
@@ -258,9 +387,12 @@ class zcl_im_rpd_edev implementation.
             ev_message   = lv_msg.
       catch cx_sy_dyn_call_illegal_class.
         message 'DJTL paketi bulunamadi' type 'S' display like 'W'.
+        return.
       catch cx_root.
         message 'DJTL dosya yazim hatasi' type 'S' display like 'W'.
+        return.
     endtry.
+
   endmethod.
 
   method process_command.
@@ -393,6 +525,7 @@ class zcl_im_rpd_edev implementation.
 
     if lv_any = abap_true.
       gv_has_pending = abap_true.
+      fill_pending_key( ).
       message 'Belge yuklendi, kaydetmek icin Save yapin' type 'S'.
     else.
       clear gs_pending.
@@ -448,7 +581,46 @@ class zcl_im_rpd_edev implementation.
     gv_pending_source = '00'.
     gv_pending_config = generate_confg_id( ).
 
+    fill_pending_key( ).
+
     message 'Dosya yuklendi, kaydetmek icin Save yapin' type 'S'.
+  endmethod.
+
+  method fill_pending_key.
+    field-symbols <lv_val> type any.
+
+    clear: gv_pending_subty, gv_pending_objps, gv_pending_sprps,
+           gv_pending_endda, gv_pending_begda, gv_pending_seqnr.
+
+    assign ('(SAPFP50M)PSPAR-SUBTY') to <lv_val>.
+    if sy-subrc = 0.
+      gv_pending_subty = <lv_val>.
+    endif.
+
+    assign ('(SAPFP50M)PSPAR-OBJPS') to <lv_val>.
+    if sy-subrc = 0.
+      gv_pending_objps = <lv_val>.
+    endif.
+
+    assign ('(SAPFP50M)PSPAR-SPRPS') to <lv_val>.
+    if sy-subrc = 0.
+      gv_pending_sprps = <lv_val>.
+    endif.
+
+    assign ('(SAPFP50M)PSPAR-ENDDA') to <lv_val>.
+    if sy-subrc = 0.
+      gv_pending_endda = <lv_val>.
+    endif.
+
+    assign ('(SAPFP50M)PSPAR-BEGDA') to <lv_val>.
+    if sy-subrc = 0.
+      gv_pending_begda = <lv_val>.
+    endif.
+
+    assign ('(SAPFP50M)PSPAR-SEQNR') to <lv_val>.
+    if sy-subrc = 0.
+      gv_pending_seqnr = <lv_val>.
+    endif.
   endmethod.
 
   method generate_confg_id.

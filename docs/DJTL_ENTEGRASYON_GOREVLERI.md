@@ -86,11 +86,16 @@ DJTL'de eklenecek method'lar:
 
 ---
 
-## 4. Bilgi Tiplerine CONFG Alani
+## 4. Barkod Saklama: F9 Long Text (IT0006)
 
-Her bilgi tipine barkod/dokuman ID tutacak bir alan eklenmeli. Bu alan 9657'deki CONFG alaniyla eslesecek.
+**Yaklasim degisikligi:** Her bilgi tipine CONFG alani eklemek yerine, bilgi tipi kaydinin **F9 uzun metin (SAPScript long text)** alanı kullanılır. Barkod bu metne yazılır, `ITXEX = 'X'` flag set edilir; F9 butonu kullanıcıya aktif görünür ve standart text editörüyle barkod okunur.
 
-**Not:** Bu is EDEV ve DJTL disinda, bilgi tipi implementasyonlarinda yapilacak.
+**Konum:** [src/zcl_im_rpd_edev.clas.abap](../src/zcl_im_rpd_edev.clas.abap)
+- `AFTER_INPUT` → `(MP000600)P0006-ITXEX = 'X'` (dynamic assign)
+- `IN_UPDATE` → DJTL save basarili sonrasi `save_barcode_text` cagrilir
+- `save_barcode_text` → `SAVE_TEXT` FM (TDOBJECT='PREL', TDID='0006', TDNAME = PSKEY encoding)
+
+**Kapsam disi alinmis nokta:** P0006 CI include, T_DMAP barkod mapping'i — gerek yok.
 
 ---
 

@@ -189,7 +189,7 @@
       "ignoreNames": []
     },
     "mix_returning": true,
-    "modify_only_own_db_tables": true,
+    "modify_only_own_db_tables": false,
     "msag_consistency": true,
     "names_no_dash": true,
     "nesting": {
