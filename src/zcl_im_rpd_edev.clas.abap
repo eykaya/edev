@@ -6,6 +6,8 @@ class zcl_im_rpd_edev definition
   public section.
     interfaces if_ex_hrpad00infty.
     class-methods process_edev.
+    "! Dokuman sil butonundan tetiklenir
+    class-methods process_edev_delete.
     class-methods process_command
       importing
         iv_action type string.
@@ -31,7 +33,16 @@ class zcl_im_rpd_edev definition
     class-data gv_pending_endda   type endda.
     class-data gv_pending_begda   type begda.
     class-data gv_pending_seqnr   type pspar-seqnr.
+    class-data gv_f9_written      type abap_bool.
     class-data gv_current_infty   type infty.
+
+    class-data gv_curr_pernr   type persno.
+    class-data gv_curr_subty   type subty_591a.
+    class-data gv_curr_objps   type pspar-objps.
+    class-data gv_curr_sprps   type pspar-sprps.
+    class-data gv_curr_begda   type begda.
+    class-data gv_curr_endda   type endda.
+    class-data gv_curr_seqnr   type pspar-seqnr.
 
     class-methods resolve_mapping
       importing
@@ -108,6 +119,7 @@ class zcl_im_rpd_edev definition
 
     class-methods fill_pending_key.
 
+
 endclass.
 
 
@@ -179,6 +191,9 @@ class zcl_im_rpd_edev implementation.
     data lv_begda8 type char8.
     data lv_seqnr3 type char3.
     data lv_key    type char38.
+    data lv_ok_u   type abap_bool.
+    data lv_filep_u type string.
+    data lv_msg_u  type string.
 
     field-symbols <ls_0006> type p0006.
 
@@ -189,6 +204,11 @@ class zcl_im_rpd_edev implementation.
 
     " Skip if no pending upload
     if gv_pending_config is initial.
+      return.
+    endif.
+
+    " Guard: AFTER_INPUT her SAVE'de 2 kez tetiklenir (HR BADI), tek append yeterli
+    if gv_f9_written = abap_true.
       return.
     endif.
 
@@ -208,14 +228,24 @@ class zcl_im_rpd_edev implementation.
                 lv_endda8 lv_begda8 lv_seqnr3
                 into lv_key respecting blanks.
 
-    clear lt_ptext.
-    append ls_line-line to lt_ptext.
+    " Mevcut F9 text'ini oku -- varsa onceki satirlar korunur
+    import text-version = ls_text
+           ptext        = lt_ptext
+      from database pcl1(tx) id lv_key.
+    " sy-subrc=4 ise lt_ptext bos (yeni kayit), 0 ise dolu. Her iki durum da OK.
+
+    " Yeni barkodu AYRI SATIR olarak append et
+    clear ls_line.
+    ls_line-line = gv_pending_config.
+    append ls_line to lt_ptext.
 
     export text-version = ls_text
            ptext        = lt_ptext
       to database pcl1(tx) id lv_key.
 
-    " Store key fields for IN_UPDATE DJTL call
+    gv_f9_written = abap_true.
+
+    " Store key fields for DJTL call below
     gv_pending_pernr = new_innnn-pernr.
     gv_pending_subty = new_innnn-subty.
     gv_pending_objps = new_innnn-objps.
@@ -223,6 +253,35 @@ class zcl_im_rpd_edev implementation.
     gv_pending_endda = new_innnn-endda.
     gv_pending_begda = new_innnn-begda.
     gv_pending_seqnr = new_innnn-seqnr.
+
+    " --- DJTL: PA9657 kaydi + AL11 dosya yazimi ---
+    " IN_UPDATE'ten tasindi: class-data update task'ta persist etmiyor
+    if gv_pending_file is not initial.
+      if has_djtl_method( 'WRITE_FILE_AND_CREATE_RECORD' ) = abap_true.
+        try.
+            call method ('ZCL_ZRPD_DJTL_FILE')=>('WRITE_FILE_AND_CREATE_RECORD')
+              exporting
+                iv_pernr     = gv_pending_pernr
+                iv_subtyp    = gv_pending_subty
+                iv_begda     = sy-datum
+                iv_file_data = gv_pending_file
+                iv_source    = gv_pending_source
+                iv_config    = gv_pending_config
+              importing
+                ev_xuploaded = lv_ok_u
+                ev_filename  = lv_filep_u
+                ev_message   = lv_msg_u.
+          catch cx_root.
+            " Silent fail -- save akisini bozma
+        endtry.
+      endif.
+
+      " Pending state temizle
+      clear: gv_pending_file, gv_pending_atip, gv_pending_pernr,
+             gv_pending_source, gv_pending_config,
+             gv_pending_subty, gv_pending_objps, gv_pending_sprps,
+             gv_pending_endda, gv_pending_begda, gv_pending_seqnr.
+    endif.
   endmethod.
 
   method if_ex_hrpad00infty~before_output.
@@ -248,6 +307,17 @@ class zcl_im_rpd_edev implementation.
                 ev_parser_class = lv_parser
                 ev_found = lv_found ).
     if lv_found = abap_false. return. endif.
+
+    " IT0006 ise cari kayit key'ini sakla (FORM EXIT sync oncesi kullanilir)
+    if innnn-infty = co_infty_0006.
+      gv_curr_pernr = innnn-pernr.
+      gv_curr_subty = innnn-subty.
+      gv_curr_objps = innnn-objps.
+      gv_curr_sprps = innnn-sprps.
+      gv_curr_begda = innnn-begda.
+      gv_curr_endda = innnn-endda.
+      gv_curr_seqnr = innnn-seqnr.
+    endif.
 
     if gv_has_pending = abap_true and innnn-infty = co_infty_0006.
       assign (co_mp_p0006) to <ls_0006>.
@@ -316,83 +386,7 @@ class zcl_im_rpd_edev implementation.
   endmethod.
 
   method if_ex_hrpad00infty~in_update.
-    data lv_ok     type abap_bool.
-    data lv_filep  type string.
-    data lv_msg    type string.
-    data lv_pernr  type persno.
-    data lv_file   type xstring.
-    data lv_source type zrpd_djtl_de_source.
-    data lv_config type zrpd_djtl_de_confg.
-    data lv_atip   type n length 2.
-    data lv_subty  type subty.
-    data lv_objps  type pspar-objps.
-    data lv_sprps  type pspar-sprps.
-    data lv_endda  type endda.
-    data lv_begda  type begda.
-    data lv_seqnr  type pspar-seqnr.
-    data ls_pa0006 type pa0006.
-
-    " Tetikleyici: pending file varligi
-    if gv_pending_file is initial.
-      return.
-    endif.
-
-    " Islem icin degerleri topla (key alanlari dahil)
-    lv_pernr  = gv_pending_pernr.
-    lv_file   = gv_pending_file.
-    lv_source = gv_pending_source.
-    lv_config = gv_pending_config.
-    lv_atip   = gv_pending_atip.
-    lv_subty  = gv_pending_subty.
-    lv_objps  = gv_pending_objps.
-    lv_sprps  = gv_pending_sprps.
-    lv_endda  = gv_pending_endda.
-    lv_begda  = gv_pending_begda.
-    lv_seqnr  = gv_pending_seqnr.
-
-    " Pending state temizle (tum key alanlari dahil, tek sefer garantisi)
-    clear: gv_pending_file, gv_pending_atip, gv_pending_pernr,
-           gv_pending_source, gv_pending_config,
-           gv_pending_subty, gv_pending_objps, gv_pending_sprps,
-           gv_pending_endda, gv_pending_begda, gv_pending_seqnr.
-
-    " PA0006 aktif kaydini bul (sy-datum icinde gecerli)
-    select single pernr, subty, objps, sprps, endda, begda, seqnr, itxex
-      from pa0006
-      where pernr = @lv_pernr
-        and endda ge @sy-datum
-        and begda le @sy-datum
-      into corresponding fields of @ls_pa0006.
-    if sy-subrc ne 0.
-      return.
-    endif.
-
-    if has_djtl_method( 'WRITE_FILE_AND_CREATE_RECORD' ) = abap_false.
-      message 'DJTL paketi bulunamadi, dokuman saklanamadi' type 'S' display like 'W'.
-      return.
-    endif.
-
-    try.
-        call method ('ZCL_ZRPD_DJTL_FILE')=>('WRITE_FILE_AND_CREATE_RECORD')
-          exporting
-            iv_pernr     = lv_pernr
-            iv_subtyp    = lv_atip
-            iv_begda     = sy-datum
-            iv_file_data = lv_file
-            iv_source    = lv_source
-            iv_config    = lv_config
-          importing
-            ev_xuploaded = lv_ok
-            ev_filename  = lv_filep
-            ev_message   = lv_msg.
-      catch cx_sy_dyn_call_illegal_class.
-        message 'DJTL paketi bulunamadi' type 'S' display like 'W'.
-        return.
-      catch cx_root.
-        message 'DJTL dosya yazim hatasi' type 'S' display like 'W'.
-        return.
-    endtry.
-
+    " Tasindi: AFTER_INPUT
   endmethod.
 
   method process_command.
@@ -491,9 +485,9 @@ class zcl_im_rpd_edev implementation.
 
   method upload_from_edevlet.
     data lv_doc_type_const type zrpd_edev_de_dctyp.
-    data lt_targets type standard table of zrpd_edev_de_iflnm.
-    data lv_target  type zrpd_edev_de_iflnm.
-    data lv_any     type abap_bool.
+    data lt_targets        type standard table of zrpd_edev_de_iflnm with empty key.
+    data lv_target         type zrpd_edev_de_iflnm.
+    data lv_any            type abap_bool.
     field-symbols <fs_val> type any.
 
     lv_doc_type_const = iv_doc_type.
@@ -530,6 +524,7 @@ class zcl_im_rpd_edev implementation.
     else.
       clear gs_pending.
     endif.
+
   endmethod.
 
   method upload_from_file.
@@ -688,36 +683,19 @@ class zcl_im_rpd_edev implementation.
     data lv_pernr type persno.
     data lv_subty type subty_591a.
     data lv_begda type begda.
-    data lv_seqnr type seqnr.
-    data lv_max   type seqnr.
-    field-symbols <lv_subty> type any.
-    field-symbols <lv_begda> type any.
-    field-symbols <lv_seqnr> type any.
+    data lv_seqnr type pspar-seqnr.
+    data lv_max   type pspar-seqnr.
 
     clear: ev_pernr, ev_subty, ev_confg, ev_filep.
     ev_found = abap_false.
 
-    lv_pernr = get_pernr( ).
+    lv_pernr = gv_curr_pernr.
+    lv_subty = gv_curr_subty.
+    lv_begda = gv_curr_begda.
+    lv_seqnr = gv_curr_seqnr.
+
     if lv_pernr is initial.
       return.
-    endif.
-
-    assign ('(SAPFP50M)PSPAR-SUBTY') to <lv_subty>.
-    if sy-subrc = 0.
-      lv_subty = <lv_subty>.
-    endif.
-
-    assign ('(SAPFP50M)PSPAR-BEGDA') to <lv_begda>.
-    if sy-subrc = 0.
-      lv_begda = <lv_begda>.
-    endif.
-    if lv_begda is initial.
-      lv_begda = sy-datum.
-    endif.
-
-    assign ('(SAPFP50M)PSPAR-SEQNR') to <lv_seqnr>.
-    if sy-subrc = 0.
-      lv_seqnr = <lv_seqnr>.
     endif.
 
     if lv_seqnr is initial.
@@ -725,8 +703,8 @@ class zcl_im_rpd_edev implementation.
         from pa9657
         where pernr = @lv_pernr
           and subty = @lv_subty
-          and begda <= @lv_begda
-          and endda >= @lv_begda
+          and begda <= @sy-datum
+          and endda >= @sy-datum
         into @lv_max.
       if sy-subrc <> 0 or lv_max is initial.
         return.
@@ -740,8 +718,8 @@ class zcl_im_rpd_edev implementation.
       where pernr = @lv_pernr
         and subty = @lv_subty
         and seqnr = @lv_seqnr
-        and begda <= @lv_begda
-        and endda >= @lv_begda.
+        and begda <= @sy-datum
+        and endda >= @sy-datum.
     if sy-subrc = 0.
       ev_pernr = lv_pernr.
       ev_subty = lv_subty.
@@ -786,14 +764,26 @@ class zcl_im_rpd_edev implementation.
   endmethod.
 
   method process_delete.
-    data lv_pernr  type persno.
-    data lv_subty  type subty_591a.
-    data lv_confg  type zrpd_djtl_de_confg.
-    data lv_filep  type zrpd_djtl_de_filep.
-    data lv_found  type abap_bool.
-    data lv_answer type c length 1.
-    data lv_ok     type abap_bool.
-    data lv_msg    type string.
+    " PCL1 key yapisi: pernr(8) + '0006' + subty(4) + objps(2) + sprps(1) + endda(8) + begda(8) + seqnr(3)
+    data: begin of ls_txhdr, nummer type x value '02', end of ls_txhdr.
+    data: begin of ls_txrow, line(78) type c, end of ls_txrow.
+    data lt_ptext    like standard table of ls_txrow with empty key.
+    data lv_pcl1key  type char38.
+    data lv_pernr8   type char8.
+    data lv_subty4   type char4.
+    data lv_objps2   type char2.
+    data lv_sprps1   type char1.
+    data lv_endda8   type char8.
+    data lv_begda8   type char8.
+    data lv_seqnr3   type char3.
+    data lv_pernr    type persno.
+    data lv_subty    type subty_591a.
+    data lv_confg    type zrpd_djtl_de_confg.
+    data lv_filep    type zrpd_djtl_de_filep.
+    data lv_found    type abap_bool.
+    data lv_answer   type c length 1.
+    data lv_ok       type abap_bool.
+    data lv_msg      type string.
 
     get_current_record(
       importing
@@ -805,12 +795,14 @@ class zcl_im_rpd_edev implementation.
 
     if lv_found = abap_false.
       message 'Aktif PA9657 kaydi bulunamadi' type 'S' display like 'W'.
-      return.
+      set screen sy-dynnr.
+      leave screen.
     endif.
 
     if has_djtl_method( 'DELETE_DOCUMENT' ) = abap_false.
       message 'DJTL paketi bulunamadi, dokuman silinemiyor' type 'S' display like 'W'.
-      return.
+      set screen sy-dynnr.
+      leave screen.
     endif.
 
     call function 'POPUP_TO_CONFIRM'
@@ -839,19 +831,60 @@ class zcl_im_rpd_edev implementation.
           importing
             ev_success            = lv_ok
             ev_message            = lv_msg.
-
-        if lv_ok = abap_true.
-          message 'Dokuman ve kayit silindi' type 'S'.
-        else.
-          message lv_msg type 'S' display like 'W'.
-        endif.
       catch cx_root.
-        message 'DJTL silme hatasi' type 'S' display like 'W'.
+        lv_ok  = abap_false.
+        lv_msg = 'DJTL silme hatasi'.
     endtry.
+
+    " PCL1 F9 barkod temizligi -- DJTL sonucundan bagimsiz
+    lv_pernr8 = gv_curr_pernr.
+    lv_subty4 = gv_curr_subty.
+    lv_objps2 = gv_curr_objps.
+    lv_sprps1 = gv_curr_sprps.
+    lv_endda8 = gv_curr_endda.
+    lv_begda8 = gv_curr_begda.
+    lv_seqnr3 = gv_curr_seqnr.
+    concatenate lv_pernr8 '0006' lv_subty4 lv_objps2 lv_sprps1
+                lv_endda8 lv_begda8 lv_seqnr3
+                into lv_pcl1key respecting blanks.
+
+    import text-version = ls_txhdr ptext = lt_ptext
+      from database pcl1(tx) id lv_pcl1key.
+    if sy-subrc = 0.
+      delete lt_ptext where line = lv_confg.
+      if lt_ptext is initial.
+        delete from database pcl1(tx) id lv_pcl1key.
+        update pa0006 set itxex = ' '
+          where pernr = @gv_curr_pernr
+            and subty = @gv_curr_subty
+            and objps = @gv_curr_objps
+            and sprps = @gv_curr_sprps
+            and endda = @gv_curr_endda
+            and begda = @gv_curr_begda
+            and seqnr = @gv_curr_seqnr ##SUBRC_OK.
+      else.
+        export text-version = ls_txhdr ptext = lt_ptext
+          to database pcl1(tx) id lv_pcl1key.
+      endif.
+      commit work.
+    endif.
+
+    if lv_ok = abap_true.
+      message 'Dokuman ve kayit silindi' type 'S'.
+    else.
+      message lv_msg type 'S' display like 'W'.
+    endif.
+    set screen sy-dynnr.
+    leave screen.
   endmethod.
+
 
   method process_edev.
     process_command( co_cmd_upload ).
+  endmethod.
+
+  method process_edev_delete.
+    process_command( co_cmd_delete ).
   endmethod.
 
   method process_p0006.
