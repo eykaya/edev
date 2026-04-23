@@ -4,6 +4,7 @@ package-lock.json
 .metadata/
 Thumbs.db
 .vscode/settings.json
+.vscode/mcp.json
 .idea/
 .env
 .env.local
