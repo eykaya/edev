@@ -36,6 +36,12 @@
      <DOMVALUE_L>MESLEKI</DOMVALUE_L>
      <DDTEXT>Prof Certificate</DDTEXT>
     </DD07V>
+    <DD07V>
+     <VALPOS>0005</VALPOS>
+     <DDLANGUAGE>E</DDLANGUAGE>
+     <DOMVALUE_L>MEZUNIYET</DOMVALUE_L>
+     <DDTEXT>Graduation Cert</DDTEXT>
+    </DD07V>
    </DD07V_TAB>
   </asx:values>
  </asx:abap>

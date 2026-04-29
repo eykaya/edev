@@ -126,7 +126,8 @@ start-of-selection.
   data lv_upper type string.
   lv_upper = to_upper( lv_text ).
   if lv_text is initial or strlen( lv_text ) > 100000
-    or ( lv_upper ns 'KIMLIK' and lv_upper ns 'YERLESIM' and lv_upper ns 'ADRES' ).
+    or ( lv_upper ns 'KIMLIK' and lv_upper ns 'YERLESIM'
+     and lv_upper ns 'ADRES' and lv_upper ns 'NUFUS' ).
     write: / 'Native text yetersiz, Python OCR baslatiliyor...' color col_total.
     data lo_ocr type ref to zcl_zrpd_edev_ocr_py.
     create object lo_ocr.
@@ -167,11 +168,18 @@ start-of-selection.
   uline.
 
   write: / '=== FULL PARSE ===' color col_heading.
-  data: lo_parser type ref to zcl_zrpd_edev_doc_ika,
+  data: lo_parser type ref to zcl_zrpd_edev_doc_base,
         lt_vals type zrpd_edev_tt_dcval, ls_val type zrpd_edev_s_dcval.
-  create object lo_parser.
+  if lv_upper cs 'NUFUS VE VATANDASLIK'
+    or lv_upper cs 'KIMLIK KARTI BILGILER'
+    or lv_upper cs 'NUFUS CUZDANI'.
+    write: / 'Parser: KIMLIK' color col_positive.
+    create object lo_parser type zcl_zrpd_edev_doc_kim.
+  else.
+    write: / 'Parser: IKAMETGAH' color col_positive.
+    create object lo_parser type zcl_zrpd_edev_doc_ika.
+  endif.
   try.
-      write: / 'Parser: IKAMETGAH' color col_positive.
       lt_vals = lo_parser->parse_fields( lv_text ).
       loop at lt_vals into ls_val.
         data lv_out type string.
