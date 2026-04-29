@@ -1351,10 +1351,14 @@ class zcl_im_rpd_edev implementation.
     " ZRPD_TC_CHECK BAdI'sinin online check mantigi — paket içine alindi
     " Input: parse'tan gelen merni/vorna/nachn ve dogum_str ('dd.mm.yyyy' veya 'YYYYMMDD')
     " Output: bapiret2_t — caller 'E' mesaji varsa kimlik gecersiz kabul eder
+    " SM59/baglanti hatasi durumunda 'E' mesaji ile gerce kabul edilmez (bos donmez)
     data ls_parm   type zcl_rpd_online_services=>ty_service_params.
     data lo_online type ref to zcl_rpd_online_services.
     data lv_year   type i.
     data lv_str    type string.
+    data lx_root   type ref to cx_root.
+    data lv_errtxt type string.
+    data ls_msg    type bapiret2.
 
     ls_parm-merni = iv_merni.
     ls_parm-vorna = iv_vorna.
@@ -1363,10 +1367,8 @@ class zcl_im_rpd_edev implementation.
     " Dogum yili — 'dd.mm.yyyy' icin son 4 hane, 'YYYYMMDD' icin ilk 4 hane
     lv_str = iv_dogum_str.
     if strlen( lv_str ) = 10 and lv_str+2(1) ca './-'.
-      " 'dd.mm.yyyy' formati
       lv_year = lv_str+6(4).
     elseif strlen( lv_str ) = 8.
-      " 'YYYYMMDD' formati
       lv_year = lv_str(4).
     endif.
     ls_parm-gbdat = lv_year.
@@ -1374,9 +1376,19 @@ class zcl_im_rpd_edev implementation.
     try.
         create object lo_online exporting is_parm = ls_parm.
         lo_online->exec( importing et_messages = rt_messages ).
-      catch cx_root.
-        " Servis hatasi — bos liste, caller 'E' bulamaz, gecerli kabul eder
+      catch cx_root into lx_root.
+        " SM59 baglanti / runtime hatasi — caller'in fail etmesi icin 'E' satir ekle
         clear rt_messages.
+        lv_errtxt = lx_root->get_text( ).
+        if strlen( lv_errtxt ) > 150.
+          lv_errtxt = lv_errtxt(150).
+        endif.
+        clear ls_msg.
+        ls_msg-type    = 'E'.
+        ls_msg-id      = 'ZRPD_TC_MESSAGES'.
+        ls_msg-number  = '000'.
+        ls_msg-message = |TC kontrol servisine erisilemedi (SM59): { lv_errtxt }|.
+        append ls_msg to rt_messages.
     endtry.
   endmethod.
 
