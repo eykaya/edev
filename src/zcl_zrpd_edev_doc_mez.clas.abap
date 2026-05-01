@@ -26,6 +26,11 @@ class zcl_zrpd_edev_doc_mez definition public
         ev_universite type string
         ev_fakulte    type string
         ev_bolum      type string.
+    methods extract_kademe_keyword
+      importing
+        iv_text          type string
+      returning
+        value(rv_kademe) type string.
     methods append_field
       importing
         iv_name       type string
@@ -112,6 +117,23 @@ class zcl_zrpd_edev_doc_mez implementation.
         iv_name       = 'ad_soyad'
         iv_value      = lv_ad_soyad
         iv_confidence = cond #( when lv_ad_soyad = '' then '0.00' else '90.00' )
+      changing
+        ct_vals       = rt_vals ).
+
+    " PROGRAM KADEMESI (Lisans / Yuksek Lisans / Doktora / On Lisans vb)
+    " 1) extract_by_label("Program") tam-eslesme: PDF "Program\n<deger>" formatinda calisir
+    " 2) Fallback: extract_kademe_keyword - PDF metninde evrensel YOK kademe kelimesini tarar
+    "    (longest-first: Yuksek Lisans > On Lisans > Lisans, vb)
+    data lv_kademe type string.
+    lv_kademe = extract_by_label( iv_text = lv_text iv_label = 'Program' ).
+    if lv_kademe is initial.
+      lv_kademe = extract_kademe_keyword( iv_text = lv_text ).
+    endif.
+    append_field(
+      exporting
+        iv_name       = 'program_kademe'
+        iv_value      = lv_kademe
+        iv_confidence = cond #( when lv_kademe = '' then '0.00' else '80.00' )
       changing
         ct_vals       = rt_vals ).
 
@@ -295,6 +317,40 @@ class zcl_zrpd_edev_doc_mez implementation.
           off = lv_offset
           len = lv_length ).
       endif.
+    endif.
+  endmethod.
+
+  method extract_kademe_keyword.
+    " PDF metninde universal YOK kademe kelimesini bul.
+    " Longest-first sira: "Yuksek Lisans" once, sonra "On Lisans", sonra "Lisans"
+    " (aksi halde "Lisans" "Yuksek Lisans"'tan once eslesir).
+    " Turkce karakterler normalize edilir (I, U, O, S, G, C).
+    data lv_up type string.
+
+    rv_kademe = ''.
+    lv_up = to_upper( iv_text ).
+
+    replace all occurrences of |İ| in lv_up with 'I'.
+    replace all occurrences of |Ü| in lv_up with 'U'.
+    replace all occurrences of |Ö| in lv_up with 'O'.
+    replace all occurrences of |Ş| in lv_up with 'S'.
+    replace all occurrences of |Ğ| in lv_up with 'G'.
+    replace all occurrences of |Ç| in lv_up with 'C'.
+
+    if lv_up cs 'YUKSEK LISANS'.
+      rv_kademe = 'Yuksek Lisans'.
+    elseif lv_up cs 'ON LISANS' or lv_up cs 'ONLISANS'.
+      rv_kademe = 'On Lisans'.
+    elseif lv_up cs 'DOKTORA'.
+      rv_kademe = 'Doktora'.
+    elseif lv_up cs 'LISANS'.
+      rv_kademe = 'Lisans'.
+    elseif lv_up cs 'LISE'.
+      rv_kademe = 'Lise'.
+    elseif lv_up cs 'ORTAOKUL'.
+      rv_kademe = 'Ortaokul'.
+    elseif lv_up cs 'ILKOKUL'.
+      rv_kademe = 'Ilkokul'.
     endif.
   endmethod.
 

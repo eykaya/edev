@@ -17,3 +17,12 @@ tools/dassian-adt/
 dist/
 build/
 tools/__pycache__/
+
+# Test/sample documents (kimlik PDF, gizlilik)
+docs/belge.pdf
+docs/Kimlik.pdf
+docs/test_*.pdf
+
+# Stray temp files
+C[*]tmp*.txt
+*tmpsrc_check*

@@ -18,11 +18,14 @@ class zcl_im_rpd_edev definition
     constants co_infty_0006 type infty    value '0006'.
     constants co_mp_p0770   type string   value '(MP077000)P0770'.
     constants co_infty_0770 type infty    value '0770'.
+    constants co_mp_p0022   type string   value '(MP002200)P0022'.
+    constants co_infty_0022 type infty    value '0022'.
     constants co_cmd_upload type string   value 'UPLOAD'.
     constants co_cmd_view   type string   value 'VIEW'.
     constants co_cmd_delete type string   value 'DELETE'.
 
     class-data gs_pending      type p0006.
+    class-data gs_pending_0022 type p0022.
     class-data gs_pending_0770 type p0770.
     class-data gv_has_pending     type abap_bool.
     class-data gv_pending_file    type xstring.
@@ -37,6 +40,7 @@ class zcl_im_rpd_edev definition
     class-data gv_pending_begda   type begda.
     class-data gv_pending_seqnr   type pspar-seqnr.
     class-data gv_f9_written      type abap_bool.
+    class-data gv_tc_checked      type abap_bool.
     class-data gv_current_infty   type infty.
 
     class-data gv_curr_pernr   type persno.
@@ -105,8 +109,23 @@ class zcl_im_rpd_edev definition
 
     class-methods upload_from_file
       importing
-        iv_pernr type persno
-        iv_atip  type n.
+        iv_pernr    type persno
+        iv_atip     type n
+        iv_doc_type type zrpd_edev_de_dctyp optional
+        iv_parser   type seoclsname optional
+        iv_infty    type infty optional.
+
+    class-methods apply_vals_to_p0006
+      importing
+        it_vals type zrpd_edev_tt_dcval.
+
+    class-methods apply_vals_to_p0770
+      importing
+        it_vals type zrpd_edev_tt_dcval.
+
+    class-methods transform_ika_vals
+      changing
+        ct_vals type zrpd_edev_tt_dcval.
 
     class-methods upload_from_file_0770
       importing
@@ -118,9 +137,43 @@ class zcl_im_rpd_edev definition
       changing
         cs_0006 type p0006.
 
+    class-methods process_p0022
+      changing
+        cs_0022 type p0022.
+
     class-methods process_p0770
       changing
         cs_0770 type p0770.
+
+    class-methods apply_pending_0022.
+    class-methods set_itxex_0022.
+
+    class-methods lookup_ausbi
+      importing
+        iv_uni_metni    type string
+      returning
+        value(rv_ausbi) type ausbi.
+
+    class-methods lookup_sltp1
+      importing
+        iv_bolum_metni  type string
+      returning
+        value(rv_sltp1) type fach1.
+
+    class-methods lookup_slabs
+      importing
+        iv_program_text type string
+        iv_durum_text   type string
+      returning
+        value(rv_slabs) type p0022-slabs.
+
+    class-methods transform_mez_vals
+      changing
+        ct_vals type zrpd_edev_tt_dcval.
+
+    class-methods apply_vals_to_0022
+      importing
+        it_vals type zrpd_edev_tt_dcval.
 
     class-methods get_plate_code
       importing
@@ -147,6 +200,15 @@ class zcl_im_rpd_edev definition
         iv_dogum_str       type string
       returning
         value(rt_messages) type bapiret2_t.
+
+    "! AFTER_INPUT icin: PA0002 master kaydini cekip TC online kontrolunu calistirir
+    class-methods validate_tc_against_master
+      importing
+        iv_pernr           type pernr_d
+        iv_merni           type ptr_merni
+      returning
+        value(rt_messages) type bapiret2_t.
+
 
 
 endclass.
@@ -223,12 +285,92 @@ class zcl_im_rpd_edev implementation.
     data lv_ok_u   type abap_bool.
     data lv_filep_u type string.
     data lv_msg_u  type string.
+    data lv_subtyp_call type subty.
+    data lv_atip_chk type n length 2.
+    data lv_doc_chk  type zrpd_edev_de_dctyp.
+    data lv_pars_chk type seoclsname.
+    data lv_fnd_chk  type abap_bool.
+    data lt_tc_msg   type bapiret2_t.
+    data ls_tc_msg   type bapiret2.
+    data lv_merni_in type ptr_merni.
 
-    field-symbols <ls_0006> type p0006.
+    field-symbols <ls_0006>  type p0006.
+    field-symbols <lv_p0770> type p0770.
 
     " IT0006 ve IT0770 disindaki infotype'lar atlanir
-    if new_innnn-infty <> co_infty_0006 and new_innnn-infty <> co_infty_0770.
+    " T_DTYP'te aktif kayitli tum BT'ler icin calisir (generic - yeni BT eklemek icin sadece T_DTYP'e satir)
+    resolve_mapping(
+      exporting iv_infty        = new_innnn-infty
+      importing ev_atip         = lv_atip_chk
+                ev_doc_type     = lv_doc_chk
+                ev_parser_class = lv_pars_chk
+                ev_found        = lv_fnd_chk ).
+    if lv_fnd_chk = abap_false.
       return.
+    endif.
+
+    " IT0770 master-data TC online check (ZRPD_TC_CHECK pattern)
+    " Test/dev sisteminde NVI erisilemedigi icin tamamen skip — sadece production'da calisir
+    " Filtreler return etmiyor: F9 + DJTL akisi IT0770'in tum alt-tipleri icin devam eder
+    if new_innnn-infty = co_infty_0770 and gv_tc_checked = abap_false.
+      data lv_client_category type t000-cccategory.
+      select single cccategory from t000
+        into @lv_client_category
+        where mandt = @sy-mandt.
+
+      if lv_client_category = 'P'
+         and ipsyst-ioper    <> 'DEL'
+         and i001p-molga     =  '47'
+         and new_innnn-subty =  '01'.
+        " new_innnn (PRELP) -> P0770 cast
+        data ls_p0770 type p0770.
+        call method cl_hr_pnnnn_type_cast=>prelp_to_pnnnn
+          exporting prelp = new_innnn
+          importing pnnnn = ls_p0770.
+
+        " PA0002 SELECT — p0770 tarih araligi
+        data ls_par2 type p0002.
+        select single vorna, nachn, gbdat
+          from pa0002
+          into corresponding fields of @ls_par2
+          where pernr = @ls_p0770-pernr
+            and begda <= @ls_p0770-endda
+            and endda >= @ls_p0770-begda.
+
+        if sy-subrc = 0.
+          data lv_dogum_y  type string.
+          data lv_vorna_p2 type vorna.
+          data lv_nachn_p2 type nachn.
+          data lt_tc_msg2  type bapiret2_t.
+          data ls_tc_msg2  type bapiret2.
+          lv_dogum_y  = ls_par2-gbdat(4).
+          lv_vorna_p2 = ls_par2-vorna.
+          lv_nachn_p2 = ls_par2-nachn.
+          lt_tc_msg2 = tc_online_check(
+            iv_merni     = ls_p0770-merni
+            iv_vorna     = lv_vorna_p2
+            iv_nachn     = lv_nachn_p2
+            iv_dogum_str = lv_dogum_y ).
+
+          read table lt_tc_msg2 into ls_tc_msg2 with key type = 'E'.
+          if sy-subrc = 0.
+            " Production'da 'E' message dynpro'yu durdurur — save iptal
+            if ls_tc_msg2-message is initial.
+              message id ls_tc_msg2-id type 'E'
+                number ls_tc_msg2-number
+                with ls_tc_msg2-message_v1 ls_tc_msg2-message_v2
+                     ls_tc_msg2-message_v3 ls_tc_msg2-message_v4
+                display like 'I'.
+            else.
+              message ls_tc_msg2-message type 'E' display like 'I'.
+            endif.
+            " message 'E' return etmiyor; dynpro durur, kontrolu kullaniciya verir
+          endif.
+        endif.
+      endif.
+
+      " Guard: tek session'da bir kez kontrol yeterli (test/dev sessiz skip dahil)
+      gv_tc_checked = abap_true.
     endif.
 
     " Skip if no pending upload
@@ -241,6 +383,8 @@ class zcl_im_rpd_edev implementation.
       return.
     endif.
 
+    " IT0770 text desteklemez (T582A NO_TEXT) — F9 (PCL1 TX) skip; DJTL/PA9657-CONFG yeterli
+    if new_innnn-infty <> co_infty_0770.
     " Write barcode into 78-char line
     ls_line-line = gv_pending_config.
 
@@ -271,6 +415,7 @@ class zcl_im_rpd_edev implementation.
     export text-version = ls_text
            ptext        = lt_ptext
       to database pcl1(tx) id lv_key.
+    endif.
 
     gv_f9_written = abap_true.
 
@@ -286,12 +431,13 @@ class zcl_im_rpd_edev implementation.
     " --- DJTL: PA9657 kaydi + AL11 dosya yazimi ---
     " IN_UPDATE'ten tasindi: class-data update task'ta persist etmiyor
     if gv_pending_file is not initial.
+      lv_subtyp_call = gv_pending_atip.
       if has_djtl_method( 'WRITE_FILE_AND_CREATE_RECORD' ) = abap_true.
         try.
             call method ('ZCL_ZRPD_DJTL_FILE')=>('WRITE_FILE_AND_CREATE_RECORD')
               exporting
                 iv_pernr     = gv_pending_pernr
-                iv_subtyp    = gv_pending_subty
+                iv_subtyp    = lv_subtyp_call
                 iv_begda     = sy-datum
                 iv_file_data = gv_pending_file
                 iv_source    = gv_pending_source
@@ -304,13 +450,15 @@ class zcl_im_rpd_edev implementation.
             " Silent fail -- save akisini bozma
         endtry.
       endif.
-
-      " Pending state temizle
-      clear: gv_pending_file, gv_pending_atip, gv_pending_pernr,
-             gv_pending_source, gv_pending_config,
-             gv_pending_subty, gv_pending_objps, gv_pending_sprps,
-             gv_pending_endda, gv_pending_begda, gv_pending_seqnr.
     endif.
+
+    " Pending state ve F9 guard her durumda sifirlanir
+    " (sonraki upload SAVE'inde F9 + DJTL tekrar tetiklensin)
+    clear: gv_pending_file, gv_pending_atip, gv_pending_pernr,
+           gv_pending_source, gv_pending_config,
+           gv_pending_subty, gv_pending_objps, gv_pending_sprps,
+           gv_pending_endda, gv_pending_begda, gv_pending_seqnr,
+           gv_f9_written.
   endmethod.
 
   method if_ex_hrpad00infty~before_output.
@@ -338,16 +486,15 @@ class zcl_im_rpd_edev implementation.
                 ev_found = lv_found ).
     if lv_found = abap_false. return. endif.
 
-    " IT0006/IT0770 ise cari kayit key'ini sakla (FORM EXIT sync oncesi kullanilir)
-    if innnn-infty = co_infty_0006 or innnn-infty = co_infty_0770.
-      gv_curr_pernr = innnn-pernr.
-      gv_curr_subty = innnn-subty.
-      gv_curr_objps = innnn-objps.
-      gv_curr_sprps = innnn-sprps.
-      gv_curr_begda = innnn-begda.
-      gv_curr_endda = innnn-endda.
-      gv_curr_seqnr = innnn-seqnr.
-    endif.
+    " Cari kayit key'ini sakla (resolve_mapping=true olan tum BT'ler icin)
+    " process_delete/process_view bu degerleri kullaniyor
+    gv_curr_pernr = innnn-pernr.
+    gv_curr_subty = innnn-subty.
+    gv_curr_objps = innnn-objps.
+    gv_curr_sprps = innnn-sprps.
+    gv_curr_begda = innnn-begda.
+    gv_curr_endda = innnn-endda.
+    gv_curr_seqnr = innnn-seqnr.
 
     if gv_has_pending = abap_true and innnn-infty = co_infty_0006.
       assign (co_mp_p0006) to <ls_0006>.
@@ -375,6 +522,10 @@ class zcl_im_rpd_edev implementation.
 
       clear gs_pending.
       clear gv_has_pending.
+    endif.
+
+    if gv_has_pending = abap_true and innnn-infty = co_infty_0022.
+      apply_pending_0022( ).
     endif.
 
     if gv_has_pending = abap_true and innnn-infty = co_infty_0770.
@@ -427,11 +578,8 @@ class zcl_im_rpd_edev implementation.
       endif.
     endif.
 
-    if gv_pending_config is not initial and innnn-infty = co_infty_0770.
-      assign (co_mp_p0770) to <ls_0770>.
-      if sy-subrc = 0.
-        <ls_0770>-itxex = 'X'.
-      endif.
+    if gv_pending_config is not initial and innnn-infty = co_infty_0022.
+      set_itxex_0022( ).
 
       assign ('(SAPFP50M)CPREL-ITXEX') to <lv_cp_itxex>.
       if sy-subrc = 0.
@@ -448,6 +596,9 @@ class zcl_im_rpd_edev implementation.
         <lv_cp_itxex> = 'X'.
       endif.
     endif.
+
+    " IT0770 ITXEX set blogu kaldirildi (2026-05-01) — T582A NO_TEXT hatasini onler
+    " Re-enable referansi: project_edev_770_f9_itxex_changes.md (memory)
 
     assign ('(SAPFP50M)PSYST-IOPER') to <lv_oper>.
     if sy-subrc = 0.
@@ -522,18 +673,14 @@ class zcl_im_rpd_edev implementation.
     data lv_pernr  type persno.
     data lv_choice type c length 1.
 
+    " Yeni upload session: F9 guard ve eski pending state'i sifirla
+    clear: gv_f9_written,
+           gv_pending_file, gv_pending_config, gv_pending_atip,
+           gv_pending_pernr, gv_pending_source.
+
     lv_pernr = get_pernr( ).
     if lv_pernr is initial.
       message 'PERNR alinamadi' type 'S' display like 'E'.
-      return.
-    endif.
-
-    " IT0770 (Kimlik): e-Devlet kanalı yok, dogrudan dosyadan yukle + parse + TC online check
-    if gv_current_infty = co_infty_0770.
-      upload_from_file_0770(
-        iv_pernr    = lv_pernr
-        iv_atip     = iv_atip
-        iv_doc_type = iv_doc_type ).
       return.
     endif.
 
@@ -552,19 +699,37 @@ class zcl_im_rpd_edev implementation.
 
       case lv_choice.
         when '1'.
+          if gv_current_infty = co_infty_0770.
+            message 'IT0770 (Kimlik) icin yalnizca Dosyadan Yukle seceneginiz bulunmaktadir'
+                    type 'S' display like 'W'.
+            return.
+          endif.
           upload_from_edevlet(
             iv_pernr    = lv_pernr
             iv_atip     = iv_atip
             iv_doc_type = iv_doc_type ).
         when '2'.
-          upload_from_file(
-            iv_pernr = lv_pernr
-            iv_atip  = iv_atip ).
+          if gv_current_infty = co_infty_0770.
+            upload_from_file_0770(
+              iv_pernr    = lv_pernr
+              iv_atip     = iv_atip
+              iv_doc_type = iv_doc_type ).
+          else.
+            upload_from_file(
+              iv_pernr    = lv_pernr
+              iv_atip     = iv_atip
+              iv_doc_type = iv_doc_type
+              iv_parser   = iv_parser
+              iv_infty    = gv_current_infty ).
+          endif.
       endcase.
     else.
       upload_from_file(
-        iv_pernr = lv_pernr
-        iv_atip  = iv_atip ).
+        iv_pernr    = lv_pernr
+        iv_atip     = iv_atip
+        iv_doc_type = iv_doc_type
+        iv_parser   = iv_parser
+        iv_infty    = gv_current_infty ).
     endif.
   endmethod.
 
@@ -573,15 +738,31 @@ class zcl_im_rpd_edev implementation.
     data lt_targets        type standard table of zrpd_edev_de_iflnm with empty key.
     data lv_target         type zrpd_edev_de_iflnm.
     data lv_any            type abap_bool.
+    data lv_infty_filter   type infty.
     field-symbols <fs_val> type any.
 
     lv_doc_type_const = iv_doc_type.
 
-    clear gs_pending.
-    clear gv_has_pending.
+    " BT'ye gore process method'unu cagir + ilgili gs_pending_xxxx'i populate et
+    case gv_current_infty.
+      when co_infty_0006.
+        clear gs_pending.
+        clear gv_has_pending.
+        gs_pending-pernr = iv_pernr.
+        process_p0006( changing cs_0006 = gs_pending ).
+        lv_infty_filter = co_infty_0006.
 
-    gs_pending-pernr = iv_pernr.
-    process_p0006( changing cs_0006 = gs_pending ).
+      when co_infty_0022.
+        clear gs_pending_0022.
+        clear gv_has_pending.
+        gs_pending_0022-pernr = iv_pernr.
+        process_p0022( changing cs_0022 = gs_pending_0022 ).
+        lv_infty_filter = co_infty_0022.
+
+      when others.
+        message 'Bu BT icin e-Devlet akisi tanimsiz' type 'S' display like 'W'.
+        return.
+    endcase.
 
     gv_pending_atip   = iv_atip.
     gv_pending_pernr  = iv_pernr.
@@ -591,12 +772,18 @@ class zcl_im_rpd_edev implementation.
       from zrpd_edev_t_dmap
       into table @lt_targets
       where doc_type       = @lv_doc_type_const
-        and infotype       = '0006'
+        and infotype       = @lv_infty_filter
         and infotype_field <> @space.
 
     loop at lt_targets into lv_target.
-      assign component lv_target of structure gs_pending to <fs_val>.
-      if sy-subrc = 0 and <fs_val> is not initial.
+      unassign <fs_val>.
+      case gv_current_infty.
+        when co_infty_0006.
+          assign component lv_target of structure gs_pending to <fs_val>.
+        when co_infty_0022.
+          assign component lv_target of structure gs_pending_0022 to <fs_val>.
+      endcase.
+      if <fs_val> is assigned and <fs_val> is not initial.
         lv_any = abap_true.
         exit.
       endif.
@@ -607,7 +794,12 @@ class zcl_im_rpd_edev implementation.
       fill_pending_key( ).
       message 'Belge yuklendi, kaydetmek icin Save yapin' type 'S'.
     else.
-      clear gs_pending.
+      case gv_current_infty.
+        when co_infty_0006.
+          clear gs_pending.
+        when co_infty_0022.
+          clear gs_pending_0022.
+      endcase.
     endif.
 
   endmethod.
@@ -619,6 +811,18 @@ class zcl_im_rpd_edev implementation.
     data lt_rawtab     type table of char255.
     data lv_filelength type i.
     data lv_xstring    type xstring.
+
+    data lo_base    type ref to zcl_zrpd_edev_doc_base.
+    data lo_parser  type ref to zcl_zrpd_edev_doc_base.
+    data lo_ocr     type ref to zcl_zrpd_edev_ocr_py.
+    data lv_text    type string.
+    data lv_upper   type string.
+    data lt_vals    type zrpd_edev_tt_dcval.
+    data lv_need_ocr type abap_bool.
+    data lx_root    type ref to cx_root.
+    data lv_errmsg  type string.
+    data lv_parsed_barcode type string.
+    field-symbols <ls_bc> type zrpd_edev_s_dcval.
 
     cl_gui_frontend_services=>file_open_dialog(
       exporting
@@ -655,11 +859,82 @@ class zcl_im_rpd_edev implementation.
       return.
     endif.
 
+    " Parser dolu ise parse + transform + apply (3 BT + future BT)
+    if iv_parser is not initial and iv_infty is not initial.
+      try.
+          create object lo_base type (iv_parser).
+          lv_text = lo_base->pdf_to_text( lv_xstring ).
+          lv_upper = to_upper( lv_text ).
+
+          " OCR fallback - doc_type-spesifik keyword
+          case iv_doc_type.
+            when 'IKAMETGAH'.
+              if lv_text is initial or
+                 ( lv_upper ns 'KIMLIK' and lv_upper ns 'YERLESIM' and lv_upper ns 'ADRES' ).
+                lv_need_ocr = abap_true.
+              endif.
+            when 'MEZUNIYET'.
+              if lv_text is initial or lv_upper ns 'MEZUN'.
+                lv_need_ocr = abap_true.
+              endif.
+            when 'KIMLIK'.
+              if lv_text is initial or lv_upper ns 'KIMLIK'.
+                lv_need_ocr = abap_true.
+              endif.
+            when others.
+              if lv_text is initial.
+                lv_need_ocr = abap_true.
+              endif.
+          endcase.
+          if lv_need_ocr = abap_true.
+            create object lo_ocr.
+            lv_text = lo_ocr->extract_text( lv_xstring ).
+          endif.
+
+          create object lo_parser type (iv_parser).
+          lt_vals = lo_parser->parse_fields( lv_text ).
+
+          " BT-spesifik transform
+          case iv_doc_type.
+            when 'IKAMETGAH'. transform_ika_vals( changing ct_vals = lt_vals ).
+            when 'MEZUNIYET'. transform_mez_vals( changing ct_vals = lt_vals ).
+          endcase.
+
+          " BT'ye gore target struct
+          case iv_infty.
+            when co_infty_0006.
+              apply_vals_to_p0006( it_vals = lt_vals ).
+            when co_infty_0022.
+              apply_vals_to_0022( it_vals = lt_vals ).
+              gs_pending_0022-sland = 'TR'.
+            when co_infty_0770.
+              apply_vals_to_p0770( it_vals = lt_vals ).
+          endcase.
+
+          " Parse edilen barkodu F9 icin sakla
+          read table lt_vals assigning <ls_bc>
+            with key field_name = 'barkod'.
+          if sy-subrc = 0.
+            lv_parsed_barcode = <ls_bc>-field_value.
+          endif.
+        catch cx_root into lx_root.
+          lv_errmsg = lx_root->get_text( ).
+          if strlen( lv_errmsg ) > 200.
+            lv_errmsg = lv_errmsg(200).
+          endif.
+          message |Parse hatasi: { lv_errmsg }| type 'S' display like 'W'.
+      endtry.
+    endif.
+
     gv_pending_file   = lv_xstring.
     gv_pending_atip   = iv_atip.
     gv_pending_pernr  = iv_pernr.
     gv_pending_source = '00'.
-    gv_pending_config = generate_confg_id( ).
+    if lv_parsed_barcode is not initial.
+      gv_pending_config = lv_parsed_barcode.
+    else.
+      gv_pending_config = generate_confg_id( ).
+    endif.
 
     fill_pending_key( ).
 
@@ -932,7 +1207,8 @@ class zcl_im_rpd_edev implementation.
         lv_msg = 'DJTL silme hatasi'.
     endtry.
 
-    " PCL1 F9 barkod temizligi -- DJTL sonucundan bagimsiz
+    " PCL1 F9 barkod temizligi -- DJTL sonucundan bagimsiz, infty generic
+    data lv_pa_table type tabname.
     lv_pernr8 = gv_curr_pernr.
     lv_subty4 = gv_curr_subty.
     lv_objps2 = gv_curr_objps.
@@ -940,9 +1216,11 @@ class zcl_im_rpd_edev implementation.
     lv_endda8 = gv_curr_endda.
     lv_begda8 = gv_curr_begda.
     lv_seqnr3 = gv_curr_seqnr.
-    concatenate lv_pernr8 '0006' lv_subty4 lv_objps2 lv_sprps1
+    concatenate lv_pernr8 gv_current_infty lv_subty4 lv_objps2 lv_sprps1
                 lv_endda8 lv_begda8 lv_seqnr3
                 into lv_pcl1key respecting blanks.
+
+    lv_pa_table = |PA{ gv_current_infty }|.
 
     import text-version = ls_txhdr ptext = lt_ptext
       from database pcl1(tx) id lv_pcl1key.
@@ -950,14 +1228,15 @@ class zcl_im_rpd_edev implementation.
       delete lt_ptext where line = lv_confg.
       if lt_ptext is initial.
         delete from database pcl1(tx) id lv_pcl1key.
-        update pa0006 set itxex = ' '
-          where pernr = @gv_curr_pernr
-            and subty = @gv_curr_subty
-            and objps = @gv_curr_objps
-            and sprps = @gv_curr_sprps
-            and endda = @gv_curr_endda
-            and begda = @gv_curr_begda
-            and seqnr = @gv_curr_seqnr ##SUBRC_OK.
+        " PA{infty} ITXEX flag dinamik clear (silinen satirla F9 bos kalirsa)
+        update (lv_pa_table) set itxex = ' '
+          where pernr = gv_curr_pernr
+            and subty = gv_curr_subty
+            and objps = gv_curr_objps
+            and sprps = gv_curr_sprps
+            and endda = gv_curr_endda
+            and begda = gv_curr_begda
+            and seqnr = gv_curr_seqnr ##SUBRC_OK.
       else.
         export text-version = ls_txhdr ptext = lt_ptext
           to database pcl1(tx) id lv_pcl1key.
@@ -1167,6 +1446,538 @@ class zcl_im_rpd_edev implementation.
       endif.
     endloop.
 
+  endmethod.
+
+  method lookup_ausbi.
+    data: begin of ls_t518b,
+            ausbi type t518b-ausbi,
+            atext type t518b-atext,
+          end of ls_t518b.
+    data lt_t518b like standard table of ls_t518b.
+    data lv_norm   type string.
+    data lv_bezei  type string.
+    rv_ausbi = ''.
+    if iv_uni_metni is initial. return. endif.
+    lv_norm = iv_uni_metni.
+    lv_norm = to_upper( lv_norm ).
+    condense lv_norm.
+    normalize_turkish( changing cv_text = lv_norm ).
+    select ausbi atext from t518b
+      into corresponding fields of table lt_t518b
+      where langu = sy-langu.
+    if sy-subrc <> 0.
+      select ausbi atext from t518b
+        into corresponding fields of table lt_t518b
+        where langu = 'T'.
+    endif.
+    loop at lt_t518b into ls_t518b.
+      lv_bezei = to_upper( ls_t518b-atext ).
+      condense lv_bezei.
+      normalize_turkish( changing cv_text = lv_bezei ).
+      if lv_bezei = lv_norm or lv_bezei cs lv_norm or lv_norm cs lv_bezei.
+        rv_ausbi = ls_t518b-ausbi.
+        return.
+      endif.
+    endloop.
+  endmethod.
+
+  method lookup_sltp1.
+    data: begin of ls_t517x,
+            faart type t517x-faart,
+            ftext type t517x-ftext,
+          end of ls_t517x.
+    data lt_t517x like standard table of ls_t517x.
+    data lv_norm   type string.
+    data lv_bezei  type string.
+    rv_sltp1 = ''.
+    if iv_bolum_metni is initial. return. endif.
+    lv_norm = iv_bolum_metni.
+    lv_norm = to_upper( lv_norm ).
+    condense lv_norm.
+    normalize_turkish( changing cv_text = lv_norm ).
+    select faart ftext from t517x
+      into corresponding fields of table lt_t517x
+      where langu = sy-langu.
+    if sy-subrc <> 0.
+      select faart ftext from t517x
+        into corresponding fields of table lt_t517x
+        where langu = 'T'.
+    endif.
+    loop at lt_t517x into ls_t517x.
+      lv_bezei = to_upper( ls_t517x-ftext ).
+      condense lv_bezei.
+      normalize_turkish( changing cv_text = lv_bezei ).
+      if lv_bezei = lv_norm or lv_bezei cs lv_norm or lv_norm cs lv_bezei.
+        rv_sltp1 = ls_t517x-faart.
+        return.
+      endif.
+    endloop.
+  endmethod.
+
+  method lookup_slabs.
+    " 2-step lookup:
+    " 1) iv_program_text (orn "Lisans") -> T517A INNER JOIN T517T-STEXT en uzun substring -> SLART (orn '04')
+    " 2) T517A WHERE SLART=found -> T517A.ABART (data el. SLABS) ile o SLART icin gecerli SLABS listesi
+    " 3) iv_durum_text (orn "Mezun") -> T519T-STEXT en uzun substring (sadece adim 2'deki SLABS listesinde) -> SLABS
+    " Ornek: Program "Lisans" -> SLART=04, T517A:(04,52) icinden Durum "Mezun" -> 52 ("Universite mezunu")
+    data lv_slart    type slart.
+    data: begin of ls_t517,
+            slart type t517a-slart,
+            stext type t517t-stext,
+          end of ls_t517.
+    data lt_t517     like standard table of ls_t517.
+    data lt_slabs    type standard table of slabs with empty key.
+    data: begin of ls_t519,
+            slabs type t519t-slabs,
+            stext type t519t-stext,
+          end of ls_t519.
+    data lt_t519     like standard table of ls_t519.
+    data lv_norm     type string.
+    data lv_bezei    type string.
+    data lv_best_len type i.
+    data lv_curr_len type i.
+
+    rv_slabs = ''.
+
+    " DEBUG: girdileri goster (modal info, kullanici Enter'a basmadan devam etmez)
+    message |DBG slabs in: prog="{ iv_program_text }" durum="{ iv_durum_text }"|
+      type 'I'.
+
+    " --- Step 1: program_text -> SLART ---
+    if iv_program_text is initial.
+      message 'DBG slabs: program_text BOS, return' type 'I'.
+      return.
+    endif.
+    lv_norm = iv_program_text.
+    lv_norm = to_upper( lv_norm ).
+    condense lv_norm.
+    normalize_turkish( changing cv_text = lv_norm ).
+
+    select distinct a~slart t~stext
+      from t517a as a inner join t517t as t
+        on t~slart = a~slart
+      into corresponding fields of table lt_t517
+      where t~sprsl = sy-langu.
+    if lt_t517 is initial.
+      select distinct a~slart t~stext
+        from t517a as a inner join t517t as t
+          on t~slart = a~slart
+        into corresponding fields of table lt_t517
+        where t~sprsl = 'T'.
+    endif.
+
+    lv_best_len = 0.
+    loop at lt_t517 into ls_t517.
+      if ls_t517-stext is initial. continue. endif.
+      lv_bezei = to_upper( ls_t517-stext ).
+      condense lv_bezei.
+      normalize_turkish( changing cv_text = lv_bezei ).
+      if lv_norm cs lv_bezei.
+        lv_curr_len = strlen( lv_bezei ).
+        if lv_curr_len > lv_best_len.
+          lv_best_len = lv_curr_len.
+          lv_slart = ls_t517-slart.
+        endif.
+      endif.
+    endloop.
+
+    " DEBUG: Step 1 sonucu
+    data lv_t517_count type i.
+    lv_t517_count = lines( lt_t517 ).
+    message |DBG step1: T517 count={ lv_t517_count } norm="{ lv_norm }" -> SLART="{ lv_slart }"|
+      type 'I'.
+
+    if lv_slart is initial.
+      message 'DBG slabs: SLART bulunamadi (Step1 fail)' type 'I'.
+      return.
+    endif.
+
+    " --- Step 2: T517A WHERE SLART=lv_slart -> SLABS list (ABART data el. SLABS) ---
+    select abart from t517a
+      into table @lt_slabs
+      where slart = @lv_slart.
+
+    " DEBUG: Step 2 sonucu
+    data lv_slabs_count type i.
+    data lv_slabs_list  type string.
+    data ls_slabs_dbg   type slabs.
+    lv_slabs_count = lines( lt_slabs ).
+    loop at lt_slabs into ls_slabs_dbg.
+      lv_slabs_list = |{ lv_slabs_list } { ls_slabs_dbg }|.
+    endloop.
+    message |DBG step2: SLART={ lv_slart } -> { lv_slabs_count } SLABS: { lv_slabs_list }|
+      type 'I'.
+
+    if lt_slabs is initial.
+      message |DBG slabs: SLART="{ lv_slart }" icin T517A bos (Step2 fail)|
+        type 'I'.
+      return.
+    endif.
+
+    " --- Step 3: durum_text -> T519T-STEXT match (lt_slabs filtreli) ---
+    if iv_durum_text is initial.
+      message 'DBG slabs: durum_text BOS, return' type 'I'.
+      return.
+    endif.
+    lv_norm = iv_durum_text.
+    lv_norm = to_upper( lv_norm ).
+    condense lv_norm.
+    normalize_turkish( changing cv_text = lv_norm ).
+
+    select slabs stext from t519t
+      into corresponding fields of table lt_t519
+      for all entries in lt_slabs
+      where slabs = lt_slabs-table_line
+        and sprsl = sy-langu.
+    if lt_t519 is initial.
+      select slabs stext from t519t
+        into corresponding fields of table lt_t519
+        for all entries in lt_slabs
+        where slabs = lt_slabs-table_line
+          and sprsl = 'T'.
+    endif.
+
+    " DEBUG: Step 3 girdi
+    data lv_t519_count type i.
+    lv_t519_count = lines( lt_t519 ).
+    message |DBG step3: T519T count={ lv_t519_count } durum norm="{ lv_norm }"|
+      type 'I'.
+
+    lv_best_len = 0.
+    loop at lt_t519 into ls_t519.
+      if ls_t519-stext is initial. continue. endif.
+      lv_bezei = to_upper( ls_t519-stext ).
+      condense lv_bezei.
+      normalize_turkish( changing cv_text = lv_bezei ).
+      if lv_norm cs lv_bezei.
+        lv_curr_len = strlen( lv_bezei ).
+        if lv_curr_len > lv_best_len.
+          lv_best_len = lv_curr_len.
+          rv_slabs = ls_t519-slabs.
+        endif.
+      endif.
+    endloop.
+
+    " DEBUG: nihai sonuc
+    message |DBG slabs out: rv_slabs="{ rv_slabs }"| type 'I'.
+  endmethod.
+
+  method transform_mez_vals.
+    data ls_val        type zrpd_edev_s_dcval.
+    data lv_ausbi      type p0022-ausbi.
+    data lv_sltp1      type p0022-sltp1.
+    data lv_prog       type string.
+    data lv_durum      type string.
+    data lv_tmp        type string.
+    data lv_slabs_code type p0022-slabs.
+    field-symbols <ls_val> like ls_val.
+
+    read table ct_vals assigning <ls_val> with key field_name = 'uni_metni'.
+    if sy-subrc = 0 and <ls_val>-field_value is not initial.
+      lv_tmp = <ls_val>-field_value.
+      lv_ausbi = lookup_ausbi( iv_uni_metni = lv_tmp ).
+      if lv_ausbi is not initial.
+        clear ls_val.
+        ls_val-field_name  = 'ausbi'.
+        ls_val-field_value = lv_ausbi.
+        append ls_val to ct_vals.
+      else.
+        message |Universite "{ lv_tmp }" T518B'de bulunamadi, AUSBI bos birakildi| type 'S' display like 'W'.
+      endif.
+    endif.
+
+    read table ct_vals assigning <ls_val> with key field_name = 'bolum_metni'.
+    if sy-subrc = 0 and <ls_val>-field_value is not initial.
+      lv_tmp = <ls_val>-field_value.
+      lv_sltp1 = lookup_sltp1( iv_bolum_metni = lv_tmp ).
+      if lv_sltp1 is not initial.
+        clear ls_val.
+        ls_val-field_name  = 'sltp1'.
+        ls_val-field_value = lv_sltp1.
+        append ls_val to ct_vals.
+      else.
+        message |Bolum "{ lv_tmp }" T517X'de bulunamadi, SLTP1 bos birakildi| type 'S' display like 'W'.
+      endif.
+    endif.
+
+    " SLABS = 2-step lookup
+    " Program kademe -> SLART (T517A INNER JOIN T517T)
+    " Durum metni    -> SLABS (T519T, sadece SLART'in T517A'da configured SLABS listesi icinden)
+    read table ct_vals assigning <ls_val> with key field_name = 'program_kademe'.
+    if sy-subrc = 0.
+      lv_prog = <ls_val>-field_value.
+    endif.
+    read table ct_vals assigning <ls_val> with key field_name = 'durum'.
+    if sy-subrc = 0.
+      lv_durum = <ls_val>-field_value.
+    endif.
+
+    " DEBUG: ct_vals'tan okunan degerler — transform_mez_vals cagrildi mi gormek icin
+    " ENTRY mesaji: hicbir sey okunamasa bile gozukur
+    message |DBG transform GIRIS — ct_vals row sayisi={ lines( ct_vals ) }| type 'I'.
+    message |DBG transform: program_kademe="{ lv_prog }" durum="{ lv_durum }"|
+      type 'I'.
+
+    if lv_prog is not initial and lv_durum is not initial.
+      lv_slabs_code = lookup_slabs(
+        iv_program_text = lv_prog
+        iv_durum_text   = lv_durum ).
+      if lv_slabs_code is not initial.
+        clear ls_val.
+        ls_val-field_name  = 'slabs'.
+        ls_val-field_value = lv_slabs_code.
+        append ls_val to ct_vals.
+      else.
+        message |SLABS bulunamadi (Program: "{ lv_prog }", Durum: "{ lv_durum }")| type 'S' display like 'W'.
+      endif.
+    endif.
+
+  endmethod.
+
+  method apply_vals_to_0022.
+    data ls_val type zrpd_edev_s_dcval.
+    field-symbols <ls_val>   like ls_val.
+    field-symbols <lv_field> type any.
+    loop at it_vals assigning <ls_val>.
+      assign component <ls_val>-field_name of structure gs_pending_0022 to <lv_field>.
+      if sy-subrc = 0.
+        <lv_field> = <ls_val>-field_value.
+      endif.
+    endloop.
+    gv_has_pending = abap_true.
+  endmethod.
+
+  method apply_pending_0022.
+    data lv_doc_type type zrpd_edev_de_dctyp.
+    data lt_targets  type standard table of zrpd_edev_de_iflnm with empty key.
+    data lv_target   type zrpd_edev_de_iflnm.
+    field-symbols <ls_0022> type p0022.
+    field-symbols <fs_src>  type any.
+    field-symbols <fs_dst>  type any.
+
+    select single doc_type from zrpd_edev_t_dtyp
+      into @lv_doc_type
+      where infotype = '0022' and active = 'X'.
+    if sy-subrc <> 0. lv_doc_type = 'MEZUNIYET'. endif.
+
+    assign (co_mp_p0022) to <ls_0022>.
+    if sy-subrc <> 0.
+      clear gs_pending_0022.
+      clear gv_has_pending.
+      return.
+    endif.
+
+    select distinct infotype_field
+      from zrpd_edev_t_dmap
+      into table @lt_targets
+      where doc_type       = @lv_doc_type
+        and infotype       = '0022'
+        and infotype_field <> @space.
+
+    loop at lt_targets into lv_target.
+      assign component lv_target of structure gs_pending_0022 to <fs_src>.
+      if sy-subrc <> 0. continue. endif.
+      if <fs_src> is initial. continue. endif.
+      assign component lv_target of structure <ls_0022> to <fs_dst>.
+      if sy-subrc <> 0. continue. endif.
+      <fs_dst> = <fs_src>.
+    endloop.
+
+    clear gs_pending_0022.
+    clear gv_has_pending.
+  endmethod.
+
+  method set_itxex_0022.
+    field-symbols <ls_0022> type p0022.
+    assign (co_mp_p0022) to <ls_0022>.
+    if sy-subrc = 0.
+      <ls_0022>-itxex = 'X'.
+    endif.
+  endmethod.
+
+  method process_p0022.
+    data lv_tckn     type char11.
+    data lv_barcode  type zrpd_edev_de_bcno.
+    data lt_fields   type table of sval.
+    data ls_field    type sval.
+    data lv_rc       type c length 1.
+    data lt_vals     type zrpd_edev_tt_dcval.
+    data lo_edv      type ref to zcl_zrpd_edev_edevlet.
+    data lv_ok       type abap_bool.
+    data lv_pdf      type xstring.
+    data lo_base     type ref to zcl_zrpd_edev_doc_base.
+    data lo_ocr      type ref to zcl_zrpd_edev_ocr_py.
+    data lv_text     type string.
+    data lv_upper    type string.
+    data lo_parser   type ref to zcl_zrpd_edev_doc_base.
+    data lx_root     type ref to cx_root.
+    data lv_errmsg   type string.
+
+    select single merni from pa0770
+      into lv_tckn
+      where pernr = cs_0022-pernr
+        and endda >= sy-datum
+        and begda <= sy-datum.
+    if sy-subrc <> 0 or lv_tckn is initial.
+      message 'PA0770 MERNI bulunamadi' type 'S' display like 'E'.
+      return.
+    endif.
+
+    ls_field-tabname   = 'ZRPD_EDEV_S_DOCHD'.
+    ls_field-fieldname = 'BARCODE'.
+    ls_field-fieldtext = 'Barkod'.
+    append ls_field to lt_fields.
+
+    call function 'POPUP_GET_VALUES'
+      exporting popup_title     = 'e-Devlet Belge Dogrulama'
+      importing returncode      = lv_rc
+      tables    fields          = lt_fields
+      exceptions error_in_fields = 1 others = 2.
+    if sy-subrc <> 0 or lv_rc = 'A'. return. endif.
+
+    read table lt_fields into ls_field index 1.
+    lv_barcode = ls_field-value.
+    if lv_barcode is initial. return. endif.
+
+    gv_pending_config = lv_barcode.
+
+    try.
+        create object lo_edv.
+        lv_ok = lo_edv->verify( iv_barcode = lv_barcode iv_tckn = lv_tckn ).
+        if lv_ok <> abap_true.
+          message 'Barkod GECERSIZ' type 'S' display like 'E'.
+          return.
+        endif.
+        lv_pdf = lo_edv->fetch_pdf( iv_barcode = lv_barcode iv_tckn = lv_tckn ).
+        if lv_pdf is initial.
+          message 'Belge indirilemedi' type 'S' display like 'E'.
+          return.
+        endif.
+        gv_pending_file = lv_pdf.
+
+        create object lo_base type zcl_zrpd_edev_doc_mez.
+        lv_text = lo_base->pdf_to_text( lv_pdf ).
+        lv_upper = to_upper( lv_text ).
+        if lv_text is initial or lv_upper ns 'MEZUN'.
+          create object lo_ocr.
+          lv_text = lo_ocr->extract_text( lv_pdf ).
+        endif.
+
+        create object lo_parser type zcl_zrpd_edev_doc_mez.
+        lt_vals = lo_parser->parse_fields( lv_text ).
+      catch cx_root into lx_root.
+        lv_errmsg = lx_root->get_text( ).
+        if strlen( lv_errmsg ) > 200.
+          lv_errmsg = lv_errmsg(200).
+        endif.
+        message lv_errmsg type 'S' display like 'E'.
+        return.
+    endtry.
+
+    if lt_vals is initial.
+      message 'Belgeden alan cikarilamadi' type 'S' display like 'W'.
+      return.
+    endif.
+
+    transform_mez_vals( changing ct_vals = lt_vals ).
+    apply_vals_to_0022( it_vals = lt_vals ).
+    gs_pending_0022-sland = 'TR'.
+    cs_0022 = gs_pending_0022.
+  endmethod.
+
+  method transform_ika_vals.
+    data lv_plate type string.
+    field-symbols <ls_val> type zrpd_edev_s_dcval.
+    loop at ct_vals assigning <ls_val>.
+      if <ls_val>-field_value is initial. continue. endif.
+      if <ls_val>-field_name = 'blok'.
+        <ls_val>-field_value = |{ <ls_val>-field_value } Blok|.
+      elseif <ls_val>-field_name = 'il'.
+        lv_plate = get_plate_code( <ls_val>-field_value ).
+        if lv_plate is not initial.
+          <ls_val>-field_value = lv_plate.
+        else.
+          clear <ls_val>-field_value.
+        endif.
+      endif.
+    endloop.
+  endmethod.
+
+  method apply_vals_to_p0006.
+    data lv_doc_type type zrpd_edev_de_dctyp.
+    data: begin of ls_map,
+            field_name     type zrpd_edev_de_fldnm,
+            infotype_field type zrpd_edev_de_iflnm,
+          end of ls_map.
+    data lt_map like sorted table of ls_map with unique key field_name.
+    data ls_val      type zrpd_edev_s_dcval.
+    data lv_fn       type zrpd_edev_de_fldnm.
+    data lv_it_field type zrpd_edev_de_iflnm.
+    data: begin of ls_grp,
+            it_field type zrpd_edev_de_iflnm,
+            value    type string,
+          end of ls_grp.
+    data lt_grp like sorted table of ls_grp with unique key it_field.
+    field-symbols <ls_grp> like ls_grp.
+    field-symbols <ls_map> like ls_map.
+    field-symbols <fs_val> type any.
+
+    select single doc_type from zrpd_edev_t_dtyp
+      into @lv_doc_type
+      where infotype = '0006' and active = 'X'.
+    if sy-subrc <> 0. lv_doc_type = 'IKAMETGAH'. endif.
+
+    select field_name, infotype_field
+      from zrpd_edev_t_dmap
+      where doc_type       = @lv_doc_type
+        and infotype       = @co_infty_0006
+        and infotype_field <> @space
+      into corresponding fields of table @lt_map.
+    if sy-subrc <> 0. lt_map = value #( ). endif.
+
+    loop at it_vals into ls_val.
+      lv_fn = ls_val-field_name.
+      translate lv_fn to lower case.
+      if ls_val-field_value is initial. continue. endif.
+      clear lv_it_field.
+      read table lt_map assigning <ls_map> with table key field_name = lv_fn.
+      if sy-subrc <> 0 or <ls_map>-infotype_field is initial. continue. endif.
+      lv_it_field = <ls_map>-infotype_field.
+      read table lt_grp assigning <ls_grp> with table key it_field = lv_it_field.
+      if sy-subrc = 0.
+        if <ls_grp>-value is initial.
+          <ls_grp>-value = ls_val-field_value.
+        else.
+          <ls_grp>-value = |{ <ls_grp>-value } { ls_val-field_value }|.
+        endif.
+      else.
+        clear ls_grp.
+        ls_grp-it_field = lv_it_field.
+        ls_grp-value    = ls_val-field_value.
+        insert ls_grp into table lt_grp.
+      endif.
+    endloop.
+
+    loop at lt_grp into ls_grp.
+      assign component ls_grp-it_field of structure gs_pending to <fs_val>.
+      if sy-subrc = 0.
+        <fs_val> = ls_grp-value.
+      endif.
+    endloop.
+    gv_has_pending = abap_true.
+  endmethod.
+
+  method apply_vals_to_p0770.
+    data ls_val type zrpd_edev_s_dcval.
+    field-symbols <ls_val>   like ls_val.
+    field-symbols <lv_field> type any.
+    loop at it_vals assigning <ls_val>.
+      assign component <ls_val>-field_name of structure gs_pending_0770 to <lv_field>.
+      if sy-subrc = 0.
+        <lv_field> = <ls_val>-field_value.
+      endif.
+    endloop.
+    gv_has_pending = abap_true.
   endmethod.
 
   method process_p0770.
@@ -1495,7 +2306,23 @@ class zcl_im_rpd_edev implementation.
       lv_subty = <fs_subty>.
     endif.
 
-    if lv_subty = '01'.
+    " Parse edilen barkodu F9 icin sakla (subty kontrolunden bagimsiz)
+    data lv_parsed_barcode type string.
+    read table lt_vals into ls_val with key field_name = 'barkod'.
+    if sy-subrc = 0.
+      lv_parsed_barcode = ls_val-field_value.
+    endif.
+
+    data lv_client_category type t000-cccategory.
+    select single cccategory
+      from t000
+      where mandt = @sy-mandt
+      into @lv_client_category.
+    if sy-subrc <> 0.
+      clear lv_client_category.
+    endif.
+
+    if lv_subty = '01' and lv_client_category = 'P'.
       " parse'tan vorna/nachn/dogum/merni topla
       loop at lt_vals into ls_val.
         case ls_val-field_name.
@@ -1561,7 +2388,12 @@ class zcl_im_rpd_edev implementation.
     gv_pending_atip   = iv_atip.
     gv_pending_pernr  = iv_pernr.
     gv_pending_source = '00'.
-    gv_pending_config = generate_confg_id( ).
+    " IT0770: belge barkodu yok → F9 / 9657-CONFG'ye TC (MERNI) yaz
+    if lv_merni is not initial.
+      gv_pending_config = lv_merni.
+    else.
+      gv_pending_config = generate_confg_id( ).
+    endif.
 
     select distinct infotype_field
       from zrpd_edev_t_dmap
@@ -1629,6 +2461,46 @@ class zcl_im_rpd_edev implementation.
       clear gs_pending_0770.
     endif.
 
+  endmethod.
+
+  method validate_tc_against_master.
+    " ZCL_IM_RPD_TC_CHECK pattern'i -- calisan referans implementation
+    " Turkce transform YAPILMIYOR -- NVI servisi PA0002 verisini oldugu gibi kabul eder
+    data ls_par type p0002.
+    data ls_msg type bapiret2.
+
+    " PA0002 SELECT -- p0770 tarih araligini kullan (sy-datum DEGIL)
+    " Caller iv_pernr ile begda/endda saglamali; bu method icinde sy-datum fallback
+    select single vorna, nachn, gbdat
+      from pa0002
+      into corresponding fields of @ls_par
+     where pernr eq @iv_pernr
+       and begda le @sy-datum
+       and endda ge @sy-datum.
+    if sy-subrc <> 0.
+      clear ls_msg.
+      ls_msg-type    = 'E'.
+      ls_msg-id      = 'ZRPD_TC_MESSAGES'.
+      ls_msg-number  = '000'.
+      ls_msg-message = |PERNR { iv_pernr }: PA0002 master kaydi bulunamadi|.
+      append ls_msg to rt_messages.
+      return.
+    endif.
+
+    " Dogum yili -- DATS (YYYYMMDD) ilk 4 hane
+    data lv_dogum_str type string.
+    data lv_vorna_p   type vorna.
+    data lv_nachn_p   type nachn.
+    lv_dogum_str = ls_par-gbdat(4).
+    lv_vorna_p   = ls_par-vorna.
+    lv_nachn_p   = ls_par-nachn.
+
+    " tc_online_check'e oldugu gibi yolla -- Turkce transform YOK
+    rt_messages = tc_online_check(
+      iv_merni     = iv_merni
+      iv_vorna     = lv_vorna_p
+      iv_nachn     = lv_nachn_p
+      iv_dogum_str = lv_dogum_str ).
   endmethod.
 
 endclass.
