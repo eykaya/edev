@@ -3,18 +3,19 @@
  <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
   <asx:values>
    <VSEOCLASS>
-    <CLSNAME>ZCL_ZRPD_EDEV_DOC_MEZ</CLSNAME>
+    <CLSNAME>ZCL_ZRPD_EDEV_DOC_AIL</CLSNAME>
     <LANGU>T</LANGU>
-    <DESCRIPT>YOK Graduation Certificate Parser</DESCRIPT>
+    <DESCRIPT>Family Registry (Nufus Kayit Ornegi) Parser</DESCRIPT>
     <STATE>1</STATE>
     <CLSCCINCL>X</CLSCCINCL>
     <FIXPT>X</FIXPT>
     <UNICODE>X</UNICODE>
+    <WITH_UNIT_TESTS>X</WITH_UNIT_TESTS>
    </VSEOCLASS>
    <DESCRIPTIONS_CLASS>
     <SEOCLASSTX>
      <LANGU>T</LANGU>
-     <DESCRIPT>YOK Graduation Certificate Parser</DESCRIPT>
+     <DESCRIPT>Family Registry (Nufus Kayit Ornegi) Parser</DESCRIPT>
     </SEOCLASSTX>
    </DESCRIPTIONS_CLASS>
   </asx:values>

@@ -71,7 +71,7 @@ class zcl_zrpd_edev_doc_kim implementation.
           ls_val     type zrpd_edev_s_dcval,
           lv_count   type i.
 
-    " NBSP sanitize - ilk blok, her seyden once
+    " NBSP sanitize — ilk blok, her seyden once
     lv_text = iv_text.
     lv_nbsp = cl_abap_conv_in_ce=>uccp( '00A0' ).
     lv_repl = | |.
@@ -118,7 +118,7 @@ class zcl_zrpd_edev_doc_kim implementation.
       changing
         ct_vals       = rt_vals ).
 
-    " BABA ADI - text normalize edildi, ASCII label yeterli
+    " BABA ADI — text normalize edildi, ASCII label yeterli
     lv_baba = extract_by_label( iv_text = lv_text iv_label = 'Baba Adi' ).
     condense lv_baba.
     append_field(
@@ -129,7 +129,7 @@ class zcl_zrpd_edev_doc_kim implementation.
       changing
         ct_vals       = rt_vals ).
 
-    " ANNE ADI - TR + EN fallback (yeni TC Kimlik: 'Anne Adi / Mother's Name')
+    " ANNE ADI
     lv_anne = extract_by_label( iv_text = lv_text iv_label = 'Anne Adi' ).
     if lv_anne is initial.
       lv_anne = extract_by_label( iv_text = lv_text iv_label = `Mother's Name` ).
@@ -149,7 +149,7 @@ class zcl_zrpd_edev_doc_kim implementation.
       changing
         ct_vals       = rt_vals ).
 
-    " SOYAD - starts-with-separator (satir basinda 'Soyadi' + ' '/'/'/':')
+    " SOYAD — starts-with-separator (satir basinda 'Soyadi' + ' '/'/'/':')
     lv_soyad = extract_by_label(
                  iv_text  = lv_text
                  iv_label = 'Soyadi'
@@ -163,7 +163,7 @@ class zcl_zrpd_edev_doc_kim implementation.
       changing
         ct_vals       = rt_vals ).
 
-    " AD - starts-with-separator (Soyadi icinde Adi substring oldugu icin exact gerekli)
+    " AD — starts-with-separator (Soyadi icinde Adi substring oldugu icin exact gerekli)
     lv_ad = extract_by_label(
               iv_text  = lv_text
               iv_label = 'Adi'
@@ -177,7 +177,7 @@ class zcl_zrpd_edev_doc_kim implementation.
       changing
         ct_vals       = rt_vals ).
 
-    " DOGUM TARIHI - label + regex fallback (dd.mm.yyyy)
+    " DOGUM TARIHI — label + regex fallback (dd.mm.yyyy)
     lv_dogum = extract_by_label( iv_text = lv_text iv_label = 'Dogum Tarihi' ).
     " Label sonucu varsa: regex ile dd.mm.yyyy formatini cikart
     if lv_dogum is not initial.
@@ -189,7 +189,7 @@ class zcl_zrpd_edev_doc_kim implementation.
         clear lv_dogum.
       endif.
     endif.
-    " Regex fallback - tam metinde
+    " Regex fallback — tam metinde
     if lv_dogum is initial.
       find first occurrence of regex '\d{2}[./-]\d{2}[./-]\d{4}'
         in lv_text match offset lv_offset match length lv_length.
@@ -222,7 +222,7 @@ class zcl_zrpd_edev_doc_kim implementation.
     data: lv_offset type i,
           lv_length type i.
 
-    " Label chain: 'Seri No' -> 'Belge No' -> 'Seri Numaras' (prefix)
+    " Label chain: 'Seri No' → 'Belge No' → 'Seri Numaras' (prefix, son harf i/ı farkı)
     rv_seri = extract_by_label( iv_text = iv_text iv_label = 'Seri No' ).
     if rv_seri is initial.
       rv_seri = extract_by_label( iv_text = iv_text iv_label = 'Belge No' ).
@@ -231,7 +231,7 @@ class zcl_zrpd_edev_doc_kim implementation.
       rv_seri = extract_by_label( iv_text = iv_text iv_label = 'Seri Numaras' ).
     endif.
 
-    " Label sonucu varsa dogrula: sadece beklenen formatta ise kabul et
+    " Label sonucu varsa dogrula: sadece beklenen formatta ise kab ul et
     if rv_seri is not initial.
       " Yeni nesil kart: A00A00000 (1 harf + 2 rakam + 1 harf + 5 rakam)
       find first occurrence of regex '[A-Z][0-9]{2}[A-Z][0-9]{5}'
@@ -247,11 +247,11 @@ class zcl_zrpd_edev_doc_kim implementation.
         rv_seri = substring( val = rv_seri off = lv_offset len = lv_length ).
         return.
       endif.
-      " Label buldu ama formata uymadi - label degerini temizle, regex fallback'e gec
+      " Label buldu ama formata uymadi — label degerini temizle, regex fallback'e gec
       clear rv_seri.
     endif.
 
-    " Regex fallback - tam metinde ara
+    " Regex fallback — tam metinde ara
     " Once yeni nesil format (oncelikli)
     find first occurrence of regex '[A-Z][0-9]{2}[A-Z][0-9]{5}'
       in iv_text match offset lv_offset match length lv_length.
@@ -266,12 +266,12 @@ class zcl_zrpd_edev_doc_kim implementation.
     if sy-subrc = 0.
       rv_seri = substring( val = iv_text off = lv_offset len = lv_length ).
     endif.
-    " Bulunamazsa rv_seri = '' - DMAP eslemesi icin field yine de rt_vals'a eklenir
+    " Bulunamazsa rv_seri = '' — DMAP eslemesi icin field yine de rt_vals'a eklenir
   endmethod.
 
   method extract_by_label.
     " Satir-tabanli extraction:
-    " - iv_exact=true: satir label ile basliyor + sonra ' ' / ':' / satir sonu
+    " - iv_exact=true: satir label ile basliyor + sonra ' ' / ':' / satir sonu (substring confusion onler)
     " - iv_exact=false: satir label substring (cs)
     " Label bulunduktan sonra ilk non-empty + ':' olmayan satir deger
     data: lt_lines    type standard table of string with empty key,
@@ -316,7 +316,7 @@ class zcl_zrpd_edev_doc_kim implementation.
         continue.
       endif.
 
-      " Label bulundu - ilk non-empty, sadece ':' olmayan satir
+      " Label bulundu — ilk non-empty, sadece ':' olmayan satir
       if lv_clean is initial or lv_clean = ':'.
         continue.
       endif.

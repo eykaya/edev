@@ -143,6 +143,19 @@ start-of-selection.
   write: / 'Metin uzunlugu:', strlen( lv_text ), 'karakter'.
   uline.
 
+  " === OCR RAW TEXT DUMP — debug icin OCR ciktisini satir satir goster ===
+  write: / '=== OCR RAW TEXT ===' color col_heading.
+  data: lt_text_lines type standard table of string with empty key,
+        lv_text_line  type string,
+        lv_line_idx   type i.
+  split lv_text at cl_abap_char_utilities=>newline into table lt_text_lines.
+  lv_line_idx = 0.
+  loop at lt_text_lines into lv_text_line.
+    lv_line_idx = lv_line_idx + 1.
+    write: / lv_line_idx, '|', lv_text_line.
+  endloop.
+  uline.
+
   write: / '=== TCKN ===' color col_heading.
   data lv_tckn type string.
   try.
@@ -170,9 +183,14 @@ start-of-selection.
   write: / '=== FULL PARSE ===' color col_heading.
   data: lo_parser type ref to zcl_zrpd_edev_doc_base,
         lt_vals type zrpd_edev_tt_dcval, ls_val type zrpd_edev_s_dcval.
-  if lv_upper cs 'NUFUS VE VATANDASLIK'
+  if lv_upper cs 'IDENTITY CARD'
+    or lv_upper cs 'NUFUS VE VATANDASLIK'
     or lv_upper cs 'KIMLIK KARTI BILGILER'
-    or lv_upper cs 'NUFUS CUZDANI'.
+    or lv_upper cs 'KIMLIK KART'
+    or lv_upper cs 'T.C. KIMLIK'
+    or lv_upper cs 'TC KIMLIK'
+    or lv_upper cs 'NUFUS CUZDANI'
+    or lv_upper cs 'ICISLERI BAKANLIGI'.
     write: / 'Parser: KIMLIK' color col_positive.
     create object lo_parser type zcl_zrpd_edev_doc_kim.
   else.

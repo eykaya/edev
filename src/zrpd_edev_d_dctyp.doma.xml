@@ -42,6 +42,12 @@
      <DOMVALUE_L>MEZUNIYET</DOMVALUE_L>
      <DDTEXT>Graduation Cert</DDTEXT>
     </DD07V>
+    <DD07V>
+     <VALPOS>0006</VALPOS>
+     <DDLANGUAGE>E</DDLANGUAGE>
+     <DOMVALUE_L>AILE</DOMVALUE_L>
+     <DDTEXT>Family Registry</DDTEXT>
+    </DD07V>
    </DD07V_TAB>
   </asx:values>
  </asx:abap>

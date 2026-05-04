@@ -17,13 +17,6 @@
      <DESCRIPT>EDEV: PA30 ZDOC butonu handler (iskelet)</DESCRIPT>
     </SEOCLASSTX>
    </DESCRIPTIONS_CLASS>
-   <DESCRIPTIONS>
-    <SEOCOMPOTX>
-     <CMPNAME>PROCESS_EDEV</CMPNAME>
-     <LANGU>T</LANGU>
-     <DESCRIPT>PA30 ZDOC butonu handler</DESCRIPT>
-    </SEOCOMPOTX>
-   </DESCRIPTIONS>
   </asx:values>
  </asx:abap>
 </abapGit>
