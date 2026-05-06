@@ -266,6 +266,9 @@ CLASS ZCL_IM_RPD_EDEV IMPLEMENTATION.
       if sy-subrc <> 0. continue. endif.
       <fs_dst> = <fs_src>.
     endloop.
+    if <ls_0022>-sland is initial.
+      <ls_0022>-sland = 'TR'.
+    endif.
     clear gs_pending_0022.
     clear gv_has_pending.
   endmethod.

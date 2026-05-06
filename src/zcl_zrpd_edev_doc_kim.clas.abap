@@ -118,8 +118,23 @@ class zcl_zrpd_edev_doc_kim implementation.
       changing
         ct_vals       = rt_vals ).
 
-    " BABA ADI — text normalize edildi, ASCII label yeterli
+    " BABA ADI — TR-yeni / EN-tam / EN-kisa / TR-eski fallback
     lv_baba = extract_by_label( iv_text = lv_text iv_label = 'Baba Adi' ).
+    if lv_baba is initial.
+      lv_baba = extract_by_label(
+                  iv_text  = lv_text
+                  iv_label = `Father's Name` ).
+    endif.
+    if lv_baba is initial.
+      lv_baba = extract_by_label(
+                  iv_text  = lv_text
+                  iv_label = 'Father' ).
+    endif.
+    if lv_baba is initial.
+      lv_baba = extract_by_label(
+                  iv_text  = lv_text
+                  iv_label = 'Babanin Adi' ).
+    endif.
     condense lv_baba.
     append_field(
       exporting
