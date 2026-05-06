@@ -940,6 +940,7 @@ CLASS ZCL_IM_RPD_EDEV IMPLEMENTATION.
       set_itxex_0021( ).
     endif.
     " IT0770 ITXEX set blogu kaldirildi (2026-05-01) - T582A NO_TEXT hatasini onler
+    " SGUI2: IT0006 disinda EFRA butonu gizli
     assign ('(SAPFP50M)PSYST-IOPER') to <lv_oper>.
     if sy-subrc = 0.
       case <lv_oper>.
@@ -947,7 +948,11 @@ CLASS ZCL_IM_RPD_EDEV IMPLEMENTATION.
           lv_status = <lv_oper>.
       endcase.
       if lv_status is not initial.
-        set pf-status lv_status of program co_sgui_prog.
+        if innnn-infty = co_infty_0006.
+          set pf-status lv_status of program co_sgui_prog.
+        else.
+          set pf-status lv_status of program 'ZRPD_EDEV_R_SGUI2'.
+        endif.
       endif.
     endif.
   endmethod.
